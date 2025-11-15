@@ -29,6 +29,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var redScoreText: TextView
     private lateinit var blackScoreText: TextView
     private lateinit var gameTimeText: TextView
+    private lateinit var moveCountText: TextView
+    private lateinit var moveHistoryText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,6 +52,8 @@ class MainActivity : AppCompatActivity() {
         redScoreText = findViewById(R.id.redScoreText)
         blackScoreText = findViewById(R.id.blackScoreText)
         gameTimeText = findViewById(R.id.gameTimeText)
+        moveCountText = findViewById(R.id.moveCountText)
+        moveHistoryText = findViewById(R.id.moveHistoryText)
 
         newGameButton.setOnClickListener {
             showNewGameDialog()
@@ -115,6 +119,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         boardView.setOnMoveListener { move ->
+            // Check if it's the player's turn
+            if (!gameController.isPlayerTurn()) {
+                Toast.makeText(this, "不是你的回合", Toast.LENGTH_SHORT).show()
+                boardView.clearSelection()
+                return@setOnMoveListener
+            }
+
             if (gameController.makePlayerMove(move)) {
                 boardView.clearSelection()
             } else {
@@ -152,6 +163,58 @@ class MainActivity : AppCompatActivity() {
         val minutes = stats.gameTime / 60000
         val seconds = (stats.gameTime % 60000) / 1000
         gameTimeText.text = String.format("%02d:%02d", minutes, seconds)
+
+        // Update move count
+        moveCountText.text = "回合: ${stats.moveNumber}"
+
+        // Update move history
+        updateMoveHistory()
+    }
+
+    private fun updateMoveHistory() {
+        val moves = gameController.getMoveHistory()
+        if (moves.isEmpty()) {
+            moveHistoryText.text = "棋谱:"
+            return
+        }
+
+        val history = StringBuilder("棋谱: ")
+        moves.forEachIndexed { index, move ->
+            if (index > 0 && index % 2 == 0) {
+                history.append("\n")
+            }
+            val moveNum = index / 2 + 1
+            if (index % 2 == 0) {
+                history.append("${moveNum}. ")
+            }
+            history.append(formatMove(move))
+            if (index % 2 == 0 && index < moves.size - 1) {
+                history.append(" ")
+            }
+        }
+        moveHistoryText.text = history.toString()
+
+        // Auto-scroll to bottom
+        moveHistoryText.post {
+            val scrollView = moveHistoryText.parent as? android.widget.ScrollView
+            scrollView?.fullScroll(android.view.View.FOCUS_DOWN)
+        }
+    }
+
+    private fun formatMove(move: com.yingwang.chinesechess.model.Move): String {
+        // Format move as "炮2进5" style notation
+        val pieceChar = when (move.piece.type) {
+            com.yingwang.chinesechess.model.PieceType.KING -> "将"
+            com.yingwang.chinesechess.model.PieceType.ADVISOR -> "士"
+            com.yingwang.chinesechess.model.PieceType.ELEPHANT -> "象"
+            com.yingwang.chinesechess.model.PieceType.HORSE -> "马"
+            com.yingwang.chinesechess.model.PieceType.ROOK -> "车"
+            com.yingwang.chinesechess.model.PieceType.CANNON -> "炮"
+            com.yingwang.chinesechess.model.PieceType.PAWN -> "兵"
+        }
+
+        // Simplified notation: just show from->to coordinates
+        return "${pieceChar}${move.from.row}${move.from.col}->${move.to.row}${move.to.col}"
     }
 
     private fun startTimerUpdates() {
@@ -168,12 +231,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateGameModeDisplay() {
         val modeText = when (gameController.getGameMode()) {
-            GameController.GameMode.PLAYER_VS_PLAYER -> "游戏模式: 玩家 vs 玩家"
+            GameController.GameMode.PLAYER_VS_PLAYER -> "玩家 vs 玩家"
             GameController.GameMode.PLAYER_VS_AI -> {
-                val playerColor = if (gameController.getAIColor() == PieceColor.RED) "黑方" else "红方"
-                "游戏模式: 玩家($playerColor) vs AI"
+                val playerColor = if (gameController.getAIColor() == PieceColor.RED) "黑" else "红"
+                "玩家(${playerColor}) vs AI"
             }
-            GameController.GameMode.AI_VS_AI -> "游戏模式: AI vs AI"
+            GameController.GameMode.AI_VS_AI -> "AI vs AI"
         }
         gameModeText.text = modeText
     }
