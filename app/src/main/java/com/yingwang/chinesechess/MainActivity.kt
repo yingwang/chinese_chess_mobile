@@ -178,20 +178,25 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val history = StringBuilder("棋谱: ")
+        val history = StringBuilder("棋谱:\n")
         moves.forEachIndexed { index, move ->
-            if (index > 0 && index % 2 == 0) {
-                history.append("\n")
-            }
             val moveNum = index / 2 + 1
+            val formattedMove = formatMove(move)
+
             if (index % 2 == 0) {
-                history.append("${moveNum}. ")
-            }
-            history.append(formatMove(move))
-            if (index % 2 == 0 && index < moves.size - 1) {
-                history.append(" ")
+                // Red's move (start of new round)
+                history.append(String.format("%2d. %-8s", moveNum, formattedMove))
+            } else {
+                // Black's move (end of round)
+                history.append(String.format("%-8s\n", formattedMove))
             }
         }
+
+        // If last move was red's move (odd number of moves), add newline
+        if (moves.size % 2 == 1) {
+            history.append("\n")
+        }
+
         moveHistoryText.text = history.toString()
 
         // Auto-scroll to bottom
@@ -202,19 +207,58 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun formatMove(move: com.yingwang.chinesechess.model.Move): String {
-        // Format move as "炮2进5" style notation
-        val pieceChar = when (move.piece.type) {
-            com.yingwang.chinesechess.model.PieceType.GENERAL -> "将"
-            com.yingwang.chinesechess.model.PieceType.ADVISOR -> "士"
-            com.yingwang.chinesechess.model.PieceType.ELEPHANT -> "象"
-            com.yingwang.chinesechess.model.PieceType.HORSE -> "马"
-            com.yingwang.chinesechess.model.PieceType.CHARIOT -> "车"
-            com.yingwang.chinesechess.model.PieceType.CANNON -> "炮"
-            com.yingwang.chinesechess.model.PieceType.SOLDIER -> "兵"
+        // Format move in standard Chinese chess notation (e.g., "车五进九")
+        val isRed = move.piece.color == PieceColor.RED
+
+        // Get piece display name based on color
+        val pieceChar = move.piece.type.getDisplayName(move.piece.color)
+
+        // Get column position from player's perspective
+        // Red: columns 0-8 map to 九八七六五四三二一 (right to left)
+        // Black: columns 0-8 map to 1-9 (left to right)
+        val columnNotation = if (isRed) {
+            arrayOf("九", "八", "七", "六", "五", "四", "三", "二", "一")[move.from.col]
+        } else {
+            (move.from.col + 1).toString()
         }
 
-        // Simplified notation: just show from->to coordinates
-        return "${pieceChar}${move.from.row}${move.from.col}->${move.to.row}${move.to.col}"
+        // Determine direction and steps
+        val rowDiff = move.to.row - move.from.row
+        val colDiff = move.to.col - move.from.col
+
+        val (direction, steps) = when {
+            rowDiff == 0 -> {
+                // Horizontal move (平)
+                val destCol = if (isRed) {
+                    arrayOf("九", "八", "七", "六", "五", "四", "三", "二", "一")[move.to.col]
+                } else {
+                    (move.to.col + 1).toString()
+                }
+                "平" to destCol
+            }
+            (isRed && rowDiff < 0) || (!isRed && rowDiff > 0) -> {
+                // Forward move (进)
+                val stepCount = Math.abs(rowDiff)
+                val stepNotation = if (isRed) {
+                    arrayOf("", "一", "二", "三", "四", "五", "六", "七", "八", "九")[stepCount]
+                } else {
+                    stepCount.toString()
+                }
+                "进" to stepNotation
+            }
+            else -> {
+                // Backward move (退)
+                val stepCount = Math.abs(rowDiff)
+                val stepNotation = if (isRed) {
+                    arrayOf("", "一", "二", "三", "四", "五", "六", "七", "八", "九")[stepCount]
+                } else {
+                    stepCount.toString()
+                }
+                "退" to stepNotation
+            }
+        }
+
+        return "$pieceChar$columnNotation$direction$steps"
     }
 
     private fun startTimerUpdates() {
