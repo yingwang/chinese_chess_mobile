@@ -183,6 +183,7 @@ class MainActivity : AppCompatActivity() {
                     2 -> {
                         gameController.setGameMode(GameController.GameMode.PLAYER_VS_PLAYER)
                         gameController.startNewGame()
+                        updateGameModeDisplay()
                     }
                     3 -> {
                         gameController.setGameMode(GameController.GameMode.AI_VS_AI)
@@ -202,6 +203,10 @@ class MainActivity : AppCompatActivity() {
             "大师 (Master)"
         )
 
+        // Preserve current game mode and AI color before recreating controller
+        val currentMode = gameController.getGameMode()
+        val currentAIColor = gameController.getAIColor()
+
         AlertDialog.Builder(this)
             .setTitle("选择AI难度")
             .setItems(difficulties) { _, which ->
@@ -218,6 +223,9 @@ class MainActivity : AppCompatActivity() {
                 gameController.destroy()
                 gameController = GameController(difficulty)
                 setupGameController()
+
+                // Restore the game mode and AI color
+                gameController.setGameMode(currentMode, currentAIColor)
                 gameController.startNewGame()
                 updateGameModeDisplay()
             }
