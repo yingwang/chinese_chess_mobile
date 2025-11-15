@@ -7,7 +7,7 @@ package com.yingwang.chinesechess.model
 class Board {
     private val pieces = mutableMapOf<Position, Piece>()
     var currentPlayer = PieceColor.RED
-        private set
+        internal set
 
     companion object {
         const val ROWS = 10
