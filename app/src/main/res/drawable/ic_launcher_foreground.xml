@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Chess piece symbol -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M 40,35 L 68,35 L 68,45 L 65,45 L 65,55 L 68,55 L 68,75 L 40,75 L 40,55 L 43,55 L 43,45 L 40,45 Z"/>
+    <!-- Center circle -->
+    <path
+        android:fillColor="#FFD700"
+        android:strokeColor="#8B4513"
+        android:strokeWidth="2"
+        android:pathData="M 54,54 m -15,0 a 15,15 0 1,0 30,0 a 15,15 0 1,0 -30,0"/>
