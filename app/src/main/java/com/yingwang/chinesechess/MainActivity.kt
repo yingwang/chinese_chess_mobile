@@ -21,6 +21,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var newGameButton: Button
     private lateinit var undoButton: Button
     private lateinit var gameController: GameController
+    private lateinit var gameModeText: TextView
+    private lateinit var redScoreText: TextView
+    private lateinit var blackScoreText: TextView
+    private lateinit var gameTimeText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,6 +41,10 @@ class MainActivity : AppCompatActivity() {
         aiThinkingIndicator = findViewById(R.id.aiThinkingIndicator)
         newGameButton = findViewById(R.id.newGameButton)
         undoButton = findViewById(R.id.undoButton)
+        gameModeText = findViewById(R.id.gameModeText)
+        redScoreText = findViewById(R.id.redScoreText)
+        blackScoreText = findViewById(R.id.blackScoreText)
+        gameTimeText = findViewById(R.id.gameTimeText)
 
         newGameButton.setOnClickListener {
             showNewGameDialog()
@@ -95,6 +103,12 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        gameController.onStatsUpdated = { stats ->
+            runOnUiThread {
+                updateGameStats(stats)
+            }
+        }
+
         boardView.setOnMoveListener { move ->
             if (gameController.makePlayerMove(move)) {
                 boardView.clearSelection()
@@ -102,6 +116,8 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "非法移动", Toast.LENGTH_SHORT).show()
             }
         }
+
+        updateGameModeDisplay()
     }
 
     private fun updateStatus(currentPlayer: PieceColor) {
@@ -121,6 +137,27 @@ class MainActivity : AppCompatActivity() {
             board.isInCheck(board.currentPlayer) -> "$playerName 将军！"
             else -> "$playerName 走棋"
         }
+    }
+
+    private fun updateGameStats(stats: GameController.GameStats) {
+        redScoreText.text = "红方: ${stats.redScore}"
+        blackScoreText.text = "黑方: ${stats.blackScore}"
+
+        val minutes = stats.gameTime / 60000
+        val seconds = (stats.gameTime % 60000) / 1000
+        gameTimeText.text = String.format("%02d:%02d", minutes, seconds)
+    }
+
+    private fun updateGameModeDisplay() {
+        val modeText = when (gameController.getGameMode()) {
+            GameController.GameMode.PLAYER_VS_PLAYER -> "游戏模式: 玩家 vs 玩家"
+            GameController.GameMode.PLAYER_VS_AI -> {
+                val playerColor = if (gameController.getAIColor() == PieceColor.RED) "黑方" else "红方"
+                "游戏模式: 玩家($playerColor) vs AI"
+            }
+            GameController.GameMode.AI_VS_AI -> "游戏模式: AI vs AI"
+        }
+        gameModeText.text = modeText
     }
 
     private fun showNewGameDialog() {
@@ -182,6 +219,7 @@ class MainActivity : AppCompatActivity() {
                 gameController = GameController(difficulty)
                 setupGameController()
                 gameController.startNewGame()
+                updateGameModeDisplay()
             }
             .show()
     }
