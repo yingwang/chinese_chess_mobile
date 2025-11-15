@@ -11,11 +11,11 @@ class GameController(
     private val aiDifficulty: AIDifficulty = AIDifficulty.PROFESSIONAL
 ) {
     enum class AIDifficulty(val depth: Int, val timeLimit: Long) {
-        BEGINNER(2, 1000),
-        INTERMEDIATE(4, 3000),
-        ADVANCED(5, 5000),
-        PROFESSIONAL(6, 8000),
-        MASTER(7, 15000)
+        BEGINNER(2, 500),
+        INTERMEDIATE(3, 1500),
+        ADVANCED(4, 3000),
+        PROFESSIONAL(5, 5000),
+        MASTER(6, 8000)
     }
 
     enum class GameMode {
@@ -34,11 +34,24 @@ class GameController(
 
     private var moveHistory = mutableListOf<Move>()
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var gameStartTime = 0L
+    private var currentMoveStartTime = 0L
+    private var redScore = 0
+    private var blackScore = 0
 
     var onBoardUpdated: ((Board) -> Unit)? = null
     var onGameOver: ((GameResult) -> Unit)? = null
     var onAIThinking: ((Boolean) -> Unit)? = null
     var onMoveCompleted: ((Move) -> Unit)? = null
+    var onStatsUpdated: ((GameStats) -> Unit)? = null
+
+    data class GameStats(
+        val redScore: Int,
+        val blackScore: Int,
+        val moveNumber: Int,
+        val gameTime: Long,
+        val lastMoveTime: Long
+    )
 
     sealed class GameResult {
         data class Checkmate(val winner: PieceColor) : GameResult()
@@ -54,10 +67,15 @@ class GameController(
         board = Board.createInitialBoard()
         moveHistory.clear()
         ai.clearCache()
+        gameStartTime = System.currentTimeMillis()
+        currentMoveStartTime = gameStartTime
+        redScore = 0
+        blackScore = 0
         onBoardUpdated?.invoke(board)
+        updateStats()
 
-        // If AI plays first
-        if (gameMode != GameMode.PLAYER_VS_PLAYER && aiColor == PieceColor.RED) {
+        // Trigger AI move if needed
+        if (shouldAIMove()) {
             makeAIMove()
         }
     }
@@ -73,12 +91,25 @@ class GameController(
             return false
         }
 
+        // Update score if capturing
+        if (move.capturedPiece != null) {
+            val captureValue = move.capturedPiece.type.baseValue
+            if (move.piece.color == PieceColor.RED) {
+                redScore += captureValue
+            } else {
+                blackScore += captureValue
+            }
+        }
+
         // Make the move
+        val moveStartTime = currentMoveStartTime
         board.makeMoveInPlace(move)
         moveHistory.add(move)
+        currentMoveStartTime = System.currentTimeMillis()
 
         onBoardUpdated?.invoke(board)
         onMoveCompleted?.invoke(move)
+        updateStats()
 
         // Check game over
         if (checkGameOver()) {
@@ -111,11 +142,23 @@ class GameController(
                 val move = ai.findBestMove(board)
 
                 if (move != null) {
+                    // Update score if capturing
+                    if (move.capturedPiece != null) {
+                        val captureValue = move.capturedPiece.type.baseValue
+                        if (move.piece.color == PieceColor.RED) {
+                            redScore += captureValue
+                        } else {
+                            blackScore += captureValue
+                        }
+                    }
+
                     board.makeMoveInPlace(move)
                     moveHistory.add(move)
+                    currentMoveStartTime = System.currentTimeMillis()
 
                     onBoardUpdated?.invoke(board)
                     onMoveCompleted?.invoke(move)
+                    updateStats()
 
                     // Check game over
                     if (!checkGameOver()) {
@@ -169,6 +212,23 @@ class GameController(
 
     fun getAIStats(): String {
         return "Cache size: ${ai.getCacheSize()}, Difficulty: $aiDifficulty"
+    }
+
+    fun getGameMode(): GameMode = gameMode
+
+    fun getAIColor(): PieceColor = aiColor
+
+    private fun updateStats() {
+        val gameTime = System.currentTimeMillis() - gameStartTime
+        val lastMoveTime = System.currentTimeMillis() - currentMoveStartTime
+        val stats = GameStats(
+            redScore = redScore,
+            blackScore = blackScore,
+            moveNumber = moveHistory.size,
+            gameTime = gameTime,
+            lastMoveTime = lastMoveTime
+        )
+        onStatsUpdated?.invoke(stats)
     }
 
     fun destroy() {
