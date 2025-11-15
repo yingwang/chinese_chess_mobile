@@ -11,8 +11,8 @@ class GameController(
     private val aiDifficulty: AIDifficulty = AIDifficulty.PROFESSIONAL
 ) {
     enum class AIDifficulty(val depth: Int, val timeLimit: Long, val quiescenceDepth: Int) {
-        BEGINNER(1, 300, 1),
-        INTERMEDIATE(2, 800, 2),
+        BEGINNER(1, 500, 0),  // No quiescence search for fastest response
+        INTERMEDIATE(2, 1000, 1),
         ADVANCED(3, 2000, 2),
         PROFESSIONAL(4, 4000, 3),
         MASTER(5, 6000, 3)
@@ -218,6 +218,8 @@ class GameController(
     fun getGameMode(): GameMode = gameMode
 
     fun getAIColor(): PieceColor = aiColor
+
+    fun getGameStartTime(): Long = gameStartTime
 
     private fun updateStats() {
         val gameTime = System.currentTimeMillis() - gameStartTime
