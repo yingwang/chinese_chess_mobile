@@ -10,12 +10,12 @@ import kotlinx.coroutines.*
 class GameController(
     private val aiDifficulty: AIDifficulty = AIDifficulty.PROFESSIONAL
 ) {
-    enum class AIDifficulty(val depth: Int, val timeLimit: Long) {
-        BEGINNER(2, 500),
-        INTERMEDIATE(3, 1500),
-        ADVANCED(4, 3000),
-        PROFESSIONAL(5, 5000),
-        MASTER(6, 8000)
+    enum class AIDifficulty(val depth: Int, val timeLimit: Long, val quiescenceDepth: Int) {
+        BEGINNER(1, 300, 1),
+        INTERMEDIATE(2, 800, 2),
+        ADVANCED(3, 2000, 2),
+        PROFESSIONAL(4, 4000, 3),
+        MASTER(5, 6000, 3)
     }
 
     enum class GameMode {
@@ -29,7 +29,8 @@ class GameController(
     private var aiColor = PieceColor.BLACK
     private val ai: ChessAI = ChessAI(
         maxDepth = aiDifficulty.depth,
-        timeLimit = aiDifficulty.timeLimit
+        timeLimit = aiDifficulty.timeLimit,
+        quiescenceDepth = aiDifficulty.quiescenceDepth
     )
 
     private var moveHistory = mutableListOf<Move>()

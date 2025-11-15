@@ -13,7 +13,8 @@ import kotlinx.coroutines.*
  */
 class ChessAI(
     private val maxDepth: Int = 6,
-    private val timeLimit: Long = 5000 // milliseconds
+    private val timeLimit: Long = 5000, // milliseconds
+    private val quiescenceDepth: Int = 3 // depth for quiescence search
 ) {
     private val transpositionTable = TranspositionTable()
     private var nodesSearched = 0
@@ -131,7 +132,7 @@ class ChessAI(
 
         // Terminal conditions
         if (depth == 0) {
-            return quiescenceSearch(board, alpha, beta, maximizing, 4)
+            return quiescenceSearch(board, alpha, beta, maximizing, quiescenceDepth)
         }
 
         if (board.isCheckmate()) {
@@ -272,6 +273,7 @@ class ChessAI(
     /**
      * Order moves to improve alpha-beta pruning efficiency
      * Priority: TT move > Captures > Non-captures
+     * Optimized to avoid expensive operations
      */
     private fun orderMoves(board: Board, moves: List<Move>, ttMove: Move? = null): List<Move> {
         return moves.sortedWith(compareByDescending<Move> { move ->
@@ -282,19 +284,22 @@ class ChessAI(
 
             // Captures: MVV-LVA (Most Valuable Victim - Least Valuable Attacker)
             if (move.capturedPiece != null) {
-                score += move.capturedPiece.type.baseValue
+                score += move.capturedPiece.type.baseValue * 10
                 score -= move.piece.type.baseValue / 10
             }
 
-            // Checks
-            val newBoard = board.makeMove(move)
-            if (newBoard.isInCheck(board.currentPlayer.opposite())) {
-                score += 100
+            // Center control for non-captures
+            if (move.to.col in 3..5 && move.to.row in 3..6) {
+                score += 5
             }
 
-            // Center control
-            if (move.to.col in 3..5) {
-                score += 10
+            // Forward moves for non-captures
+            if (move.capturedPiece == null) {
+                if (move.piece.color == PieceColor.RED && move.to.row > move.from.row) {
+                    score += 2
+                } else if (move.piece.color == PieceColor.BLACK && move.to.row < move.from.row) {
+                    score += 2
+                }
             }
 
             score
