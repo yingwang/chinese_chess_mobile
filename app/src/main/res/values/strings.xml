@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">中国象棋</string>
+    <string name="new_game">新游戏</string>
+    <string name="undo">悔棋</string>
+    <string name="red_turn">红方走棋</string>
+    <string name="black_turn">黑方走棋</string>
+    <string name="ai_thinking">AI思考中…</string>
+    <string name="game_over">游戏结束</string>
+    <string name="checkmate">将军！</string>
+    <string name="stalemate">和棋</string>
+    <string name="about">关于</string>
+</resources>
