@@ -82,6 +82,12 @@ class BoardView @JvmOverloads constructor(
         style = Paint.Style.FILL
     }
 
+    private val movedPieceHighlightPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(255, 165, 0) // Orange color
+        strokeWidth = 5f
+        style = Paint.Style.STROKE
+    }
+
     private var cellSize = 0f
     private var offsetX = 0f
     private var offsetY = 0f
@@ -300,6 +306,9 @@ class BoardView @JvmOverloads constructor(
         val y = offsetY + piece.position.row * cellSize
         val radius = cellSize * 0.4f
 
+        // Check if this is the piece that was just moved
+        val isMovedPiece = lastMove?.to == piece.position
+
         // Draw piece circle
         val piecePaint = if (piece.color == PieceColor.RED) redPiecePaint else blackPiecePaint
         val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -309,6 +318,11 @@ class BoardView @JvmOverloads constructor(
 
         canvas.drawCircle(x, y, radius, circlePaint)
         canvas.drawCircle(x, y, radius, linePaint)
+
+        // Draw highlight border around moved piece
+        if (isMovedPiece) {
+            canvas.drawCircle(x, y, radius + cellSize * 0.08f, movedPieceHighlightPaint)
+        }
 
         // Draw piece character
         val textPaint = if (piece.color == PieceColor.RED) redTextPaint else blackTextPaint
