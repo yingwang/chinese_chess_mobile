@@ -204,13 +204,13 @@ class MainActivity : AppCompatActivity() {
     private fun formatMove(move: com.yingwang.chinesechess.model.Move): String {
         // Format move as "炮2进5" style notation
         val pieceChar = when (move.piece.type) {
-            com.yingwang.chinesechess.model.PieceType.KING -> "将"
+            com.yingwang.chinesechess.model.PieceType.GENERAL -> "将"
             com.yingwang.chinesechess.model.PieceType.ADVISOR -> "士"
             com.yingwang.chinesechess.model.PieceType.ELEPHANT -> "象"
             com.yingwang.chinesechess.model.PieceType.HORSE -> "马"
-            com.yingwang.chinesechess.model.PieceType.ROOK -> "车"
+            com.yingwang.chinesechess.model.PieceType.CHARIOT -> "车"
             com.yingwang.chinesechess.model.PieceType.CANNON -> "炮"
-            com.yingwang.chinesechess.model.PieceType.PAWN -> "兵"
+            com.yingwang.chinesechess.model.PieceType.SOLDIER -> "兵"
         }
 
         // Simplified notation: just show from->to coordinates
