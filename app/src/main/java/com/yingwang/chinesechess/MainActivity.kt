@@ -10,8 +10,12 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.yingwang.chinesechess.model.PieceColor
 import com.yingwang.chinesechess.ui.BoardView
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
@@ -33,6 +37,7 @@ class MainActivity : AppCompatActivity() {
         initViews()
         setupGameController()
         gameController.startNewGame()
+        startTimerUpdates()
     }
 
     private fun initViews() {
@@ -140,12 +145,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateGameStats(stats: GameController.GameStats) {
+        // Score represents material advantage (captured piece values)
         redScoreText.text = "红方: ${stats.redScore}"
         blackScoreText.text = "黑方: ${stats.blackScore}"
 
         val minutes = stats.gameTime / 60000
         val seconds = (stats.gameTime % 60000) / 1000
         gameTimeText.text = String.format("%02d:%02d", minutes, seconds)
+    }
+
+    private fun startTimerUpdates() {
+        lifecycleScope.launch {
+            while (isActive) {
+                delay(1000) // Update every second
+                val gameTime = System.currentTimeMillis() - gameController.getGameStartTime()
+                val minutes = gameTime / 60000
+                val seconds = (gameTime % 60000) / 1000
+                gameTimeText.text = String.format("%02d:%02d", minutes, seconds)
+            }
+        }
     }
 
     private fun updateGameModeDisplay() {

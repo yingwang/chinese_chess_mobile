@@ -113,6 +113,13 @@ class ChessAI(
     ): Int {
         nodesSearched++
 
+        // Check time limit every 1000 nodes
+        if (nodesSearched % 1000 == 0) {
+            if (System.currentTimeMillis() - startTime > timeLimit) {
+                shouldStop = true
+            }
+        }
+
         if (shouldStop) return 0
 
         // Check transposition table
@@ -132,6 +139,10 @@ class ChessAI(
 
         // Terminal conditions
         if (depth == 0) {
+            // Skip quiescence search if disabled (quiescenceDepth == 0)
+            if (quiescenceDepth == 0) {
+                return Evaluator.evaluate(board)
+            }
             return quiescenceSearch(board, alpha, beta, maximizing, quiescenceDepth)
         }
 
