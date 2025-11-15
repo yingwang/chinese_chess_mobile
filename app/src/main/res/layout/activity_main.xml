@@ -22,14 +22,32 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <TextView
-            android:id="@+id/gameModeText"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="游戏模式: 玩家 vs AI"
-            android:textSize="14sp"
-            android:textColor="#666666" />
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/gameModeText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="start"
+                android:text="模式: 玩家 vs AI"
+                android:textSize="12sp"
+                android:textColor="#666666" />
+
+            <TextView
+                android:id="@+id/moveCountText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="end"
+                android:text="回合: 0"
+                android:textSize="12sp"
+                android:textColor="#666666" />
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -71,44 +89,73 @@
         </LinearLayout>
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/statusText"
+    <LinearLayout
+        android:id="@+id/statusContainer"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginTop="8dp"
         android:layout_marginEnd="16dp"
+        android:orientation="vertical"
         android:gravity="center"
-        android:text="红方走棋"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:textColor="#000000"
+        android:minHeight="72dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/gameInfoPanel" />
+        app:layout_constraintTop_toBottomOf="@+id/gameInfoPanel">
 
-    <ProgressBar
-        android:id="@+id/aiThinkingIndicator"
-        style="?android:attr/progressBarStyle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/statusText" />
+        <TextView
+            android:id="@+id/statusText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="红方走棋"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#000000" />
+
+        <ProgressBar
+            android:id="@+id/aiThinkingIndicator"
+            style="?android:attr/progressBarStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:visibility="gone" />
+    </LinearLayout>
 
     <com.yingwang.chinesechess.ui.BoardView
         android:id="@+id/boardView"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_margin="16dp"
-        app:layout_constraintBottom_toTopOf="@+id/buttonContainer"
+        app:layout_constraintBottom_toTopOf="@+id/moveHistoryContainer"
         app:layout_constraintDimensionRatio="0.9:1"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/aiThinkingIndicator"
+        app:layout_constraintTop_toBottomOf="@+id/statusContainer"
         app:layout_constraintVertical_bias="0.0" />
+
+    <ScrollView
+        android:id="@+id/moveHistoryContainer"
+        android:layout_width="0dp"
+        android:layout_height="60dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="8dp"
+        android:background="#E8D4B8"
+        android:padding="8dp"
+        app:layout_constraintBottom_toTopOf="@+id/buttonContainer"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <TextView
+            android:id="@+id/moveHistoryText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="棋谱:"
+            android:textSize="12sp"
+            android:textColor="#666666"
+            android:fontFamily="monospace" />
+    </ScrollView>
 
     <LinearLayout
         android:id="@+id/buttonContainer"

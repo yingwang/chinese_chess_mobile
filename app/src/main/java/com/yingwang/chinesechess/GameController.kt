@@ -221,6 +221,14 @@ class GameController(
 
     fun getGameStartTime(): Long = gameStartTime
 
+    fun isPlayerTurn(): Boolean {
+        return when (gameMode) {
+            GameMode.PLAYER_VS_PLAYER -> true
+            GameMode.PLAYER_VS_AI -> board.currentPlayer != aiColor
+            GameMode.AI_VS_AI -> false
+        }
+    }
+
     private fun updateStats() {
         val gameTime = System.currentTimeMillis() - gameStartTime
         val lastMoveTime = System.currentTimeMillis() - currentMoveStartTime
