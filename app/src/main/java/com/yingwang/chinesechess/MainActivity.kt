@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.yingwang.chinesechess.GameController.AIDifficulty
 import com.yingwang.chinesechess.audio.GameAudioManager
 import com.yingwang.chinesechess.model.PieceColor
 import com.yingwang.chinesechess.ui.BoardView
@@ -39,6 +40,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         audioManager = GameAudioManager(this)
+        gameController = GameController(AIDifficulty.PROFESSIONAL)
         initViews()
         setupGameController()
         gameController.startNewGame()
@@ -85,6 +87,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupGameController() {
         gameController = GameController(this, GameController.AIDifficulty.PROFESSIONAL)
 
+    private fun setupGameControllerCallbacks() {
         gameController.onBoardUpdated = { board ->
             runOnUiThread {
                 boardView.setBoard(board)
@@ -179,15 +182,26 @@ class MainActivity : AppCompatActivity() {
         redScoreText.text = "红方: ${stats.redScore}"
         blackScoreText.text = "黑方: ${stats.blackScore}"
 
-        val minutes = stats.gameTime / 60000
-        val seconds = (stats.gameTime % 60000) / 1000
-        gameTimeText.text = String.format("%02d:%02d", minutes, seconds)
+        gameTimeText.text = formatTime(stats.gameTime)
 
         // Update move count
         moveCountText.text = "回合: ${stats.moveNumber}"
 
         // Update move history
         updateMoveHistory()
+    }
+
+    private fun formatTime(timeInMillis: Long): String {
+        val totalSeconds = timeInMillis / 1000
+        val hours = totalSeconds / 3600
+        val minutes = (totalSeconds % 3600) / 60
+        val seconds = totalSeconds % 60
+
+        return if (hours > 0) {
+            String.format("%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format("%02d:%02d", minutes, seconds)
+        }
     }
 
     private fun updateMoveHistory() {
@@ -285,9 +299,7 @@ class MainActivity : AppCompatActivity() {
             while (isActive) {
                 delay(1000) // Update every second
                 val gameTime = System.currentTimeMillis() - gameController.getGameStartTime()
-                val minutes = gameTime / 60000
-                val seconds = (gameTime % 60000) / 1000
-                gameTimeText.text = String.format("%02d:%02d", minutes, seconds)
+                gameTimeText.text = formatTime(gameTime)
             }
         }
     }
@@ -355,12 +367,12 @@ class MainActivity : AppCompatActivity() {
             .setTitle("选择AI难度")
             .setItems(difficulties) { _, which ->
                 val difficulty = when (which) {
-                    0 -> GameController.AIDifficulty.BEGINNER
-                    1 -> GameController.AIDifficulty.INTERMEDIATE
-                    2 -> GameController.AIDifficulty.ADVANCED
-                    3 -> GameController.AIDifficulty.PROFESSIONAL
-                    4 -> GameController.AIDifficulty.MASTER
-                    else -> GameController.AIDifficulty.PROFESSIONAL
+                    0 -> AIDifficulty.BEGINNER
+                    1 -> AIDifficulty.INTERMEDIATE
+                    2 -> AIDifficulty.ADVANCED
+                    3 -> AIDifficulty.PROFESSIONAL
+                    4 -> AIDifficulty.MASTER
+                    else -> AIDifficulty.PROFESSIONAL
                 }
 
                 // Recreate game controller with new difficulty

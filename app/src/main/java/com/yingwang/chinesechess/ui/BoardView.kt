@@ -180,6 +180,7 @@ class BoardView @JvmOverloads constructor(
         drawLastMove(canvas)
         drawSelection(canvas)
         drawPieces(canvas)
+        drawCaptureIndicators(canvas)
     }
 
     private fun drawWoodGrain(canvas: Canvas) {
@@ -364,6 +365,10 @@ class BoardView @JvmOverloads constructor(
                 }
             }
         }
+    }
+
+    private fun drawCaptureIndicators(canvas: Canvas) {
+        // No longer needed as all indicators are drawn in drawSelection
     }
 
     private fun drawPieces(canvas: Canvas) {
