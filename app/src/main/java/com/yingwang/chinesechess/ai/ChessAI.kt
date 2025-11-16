@@ -29,10 +29,23 @@ class ChessAI(
     /**
      * Find the best move for the current player
      */
-    suspend fun findBestMove(board: Board): Move? = withContext(Dispatchers.Default) {
+    suspend fun findBestMove(board: Board, moveHistory: List<Move> = emptyList()): Move? = withContext(Dispatchers.Default) {
         nodesSearched = 0
         startTime = System.currentTimeMillis()
         shouldStop = false
+
+        // Check opening book first for quick responses
+        if (moveHistory.size < 6) {
+            val openingMove = OpeningBook.getOpeningMove(moveHistory)
+            if (openingMove != null) {
+                val legalMoves = board.getAllLegalMoves()
+                val matchedMove = OpeningBook.matchOpeningMove(openingMove, legalMoves)
+                if (matchedMove != null) {
+                    println("AI selected opening book move: $matchedMove")
+                    return@withContext matchedMove
+                }
+            }
+        }
 
         var bestMove: Move? = null
         var bestScore = Int.MIN_VALUE

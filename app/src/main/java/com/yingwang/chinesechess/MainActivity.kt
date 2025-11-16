@@ -39,6 +39,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         audioManager = GameAudioManager(this)
+        gameController = GameController(GameController.AIDifficulty.PROFESSIONAL)
         initViews()
         setupGameController()
         gameController.startNewGame()
@@ -83,8 +84,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupGameController() {
-        gameController = GameController(GameController.AIDifficulty.PROFESSIONAL)
+        setupGameControllerCallbacks()
+    }
 
+    private fun setupGameControllerCallbacks() {
         gameController.onBoardUpdated = { board ->
             runOnUiThread {
                 boardView.setBoard(board)
@@ -375,7 +378,7 @@ class MainActivity : AppCompatActivity() {
                 // Recreate game controller with new difficulty
                 gameController.destroy()
                 gameController = GameController(difficulty)
-                setupGameController()
+                setupGameControllerCallbacks()
 
                 // Restore the game mode and AI color
                 gameController.setGameMode(currentMode, currentAIColor)

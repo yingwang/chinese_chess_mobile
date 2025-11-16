@@ -140,7 +140,7 @@ class GameController(
 
         coroutineScope.launch {
             try {
-                val move = ai.findBestMove(board)
+                val move = ai.findBestMove(board, moveHistory)
 
                 if (move != null) {
                     // Update score if capturing
