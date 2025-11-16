@@ -179,15 +179,26 @@ class MainActivity : AppCompatActivity() {
         redScoreText.text = "红方: ${stats.redScore}"
         blackScoreText.text = "黑方: ${stats.blackScore}"
 
-        val minutes = stats.gameTime / 60000
-        val seconds = (stats.gameTime % 60000) / 1000
-        gameTimeText.text = String.format("%02d:%02d", minutes, seconds)
+        gameTimeText.text = formatTime(stats.gameTime)
 
         // Update move count
         moveCountText.text = "回合: ${stats.moveNumber}"
 
         // Update move history
         updateMoveHistory()
+    }
+
+    private fun formatTime(timeInMillis: Long): String {
+        val totalSeconds = timeInMillis / 1000
+        val hours = totalSeconds / 3600
+        val minutes = (totalSeconds % 3600) / 60
+        val seconds = totalSeconds % 60
+
+        return if (hours > 0) {
+            String.format("%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format("%02d:%02d", minutes, seconds)
+        }
     }
 
     private fun updateMoveHistory() {
@@ -285,9 +296,7 @@ class MainActivity : AppCompatActivity() {
             while (isActive) {
                 delay(1000) // Update every second
                 val gameTime = System.currentTimeMillis() - gameController.getGameStartTime()
-                val minutes = gameTime / 60000
-                val seconds = (gameTime % 60000) / 1000
-                gameTimeText.text = String.format("%02d:%02d", minutes, seconds)
+                gameTimeText.text = formatTime(gameTime)
             }
         }
     }

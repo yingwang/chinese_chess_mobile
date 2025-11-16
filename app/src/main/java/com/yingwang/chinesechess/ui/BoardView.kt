@@ -68,13 +68,26 @@ class BoardView @JvmOverloads constructor(
     }
 
     private val selectionPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(100, 0, 255, 0)
+        color = Color.argb(120, 0, 200, 0)
         style = Paint.Style.FILL
     }
 
+    private val selectionBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(0, 255, 0)
+        strokeWidth = 4f
+        style = Paint.Style.STROKE
+    }
+
     private val legalMovePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(100, 0, 0, 255)
+        color = Color.argb(150, 100, 200, 255)
         style = Paint.Style.FILL
+    }
+
+    private val capturePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(255, 100, 100)
+        strokeWidth = 4f
+        style = Paint.Style.STROKE
+        pathEffect = android.graphics.DashPathEffect(floatArrayOf(10f, 10f), 0f)
     }
 
     private val lastMovePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -145,6 +158,7 @@ class BoardView @JvmOverloads constructor(
         drawLastMove(canvas)
         drawSelection(canvas)
         drawPieces(canvas)
+        drawCaptureIndicators(canvas)
     }
 
     private fun drawGrid(canvas: Canvas) {
@@ -284,13 +298,42 @@ class BoardView @JvmOverloads constructor(
         selectedPosition?.let { pos ->
             val x = offsetX + pos.col * cellSize
             val y = offsetY + pos.row * cellSize
-            canvas.drawCircle(x, y, cellSize * 0.4f, selectionPaint)
+            val radius = cellSize * 0.4f
 
-            // Draw legal move indicators
+            // Draw selection highlight with border
+            canvas.drawCircle(x, y, radius, selectionPaint)
+            canvas.drawCircle(x, y, radius + cellSize * 0.05f, selectionBorderPaint)
+
+            // Draw legal move indicators for empty positions
             for (move in legalMoves) {
-                val moveX = offsetX + move.to.col * cellSize
-                val moveY = offsetY + move.to.row * cellSize
-                canvas.drawCircle(moveX, moveY, cellSize * 0.15f, legalMovePaint)
+                if (move.capturedPiece == null) {
+                    // Empty position - draw filled circle
+                    val moveX = offsetX + move.to.col * cellSize
+                    val moveY = offsetY + move.to.row * cellSize
+                    canvas.drawCircle(moveX, moveY, cellSize * 0.15f, legalMovePaint)
+                }
+            }
+        }
+    }
+
+    private fun drawCaptureIndicators(canvas: Canvas) {
+        selectedPosition?.let {
+            // Draw capture indicators for positions with enemy pieces
+            for (move in legalMoves) {
+                if (move.capturedPiece != null) {
+                    // Position has enemy piece - draw dashed rectangle
+                    val moveX = offsetX + move.to.col * cellSize
+                    val moveY = offsetY + move.to.row * cellSize
+                    val size = cellSize * 0.45f
+
+                    val rect = RectF(
+                        moveX - size,
+                        moveY - size,
+                        moveX + size,
+                        moveY + size
+                    )
+                    canvas.drawRect(rect, capturePaint)
+                }
             }
         }
     }
