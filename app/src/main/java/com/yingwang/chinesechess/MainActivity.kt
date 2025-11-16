@@ -85,8 +85,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupGameController() {
-        setupGameControllerCallbacks()
-    }
+        gameController = GameController(this, GameController.AIDifficulty.PROFESSIONAL)
 
     private fun setupGameControllerCallbacks() {
         gameController.onBoardUpdated = { board ->
@@ -378,8 +377,8 @@ class MainActivity : AppCompatActivity() {
 
                 // Recreate game controller with new difficulty
                 gameController.destroy()
-                gameController = GameController(difficulty)
-                setupGameControllerCallbacks()
+                gameController = GameController(this@MainActivity, difficulty)
+                setupGameController()
 
                 // Restore the game mode and AI color
                 gameController.setGameMode(currentMode, currentAIColor)

@@ -1,5 +1,6 @@
 package com.yingwang.chinesechess
 
+import android.content.Context
 import com.yingwang.chinesechess.ai.ChessAI
 import com.yingwang.chinesechess.model.*
 import kotlinx.coroutines.*
@@ -8,8 +9,10 @@ import kotlinx.coroutines.*
  * Controls the game flow and AI interactions
  */
 class GameController(
+    private val context: Context,
     private val aiDifficulty: AIDifficulty = AIDifficulty.PROFESSIONAL
 ) {
+    private val soundManager = SoundManager(context)
     enum class AIDifficulty(val depth: Int, val timeLimit: Long, val quiescenceDepth: Int) {
         BEGINNER(1, 500, 0),  // No quiescence search for fastest response
         INTERMEDIATE(2, 1000, 1),
@@ -92,6 +95,13 @@ class GameController(
             return false
         }
 
+        // Play appropriate sound
+        if (move.capturedPiece != null) {
+            soundManager.playCaptureSound()
+        } else {
+            soundManager.playMoveSound()
+        }
+
         // Update score if capturing
         if (move.capturedPiece != null) {
             val captureValue = move.capturedPiece.type.baseValue
@@ -107,6 +117,11 @@ class GameController(
         board.makeMoveInPlace(move)
         moveHistory.add(move)
         currentMoveStartTime = System.currentTimeMillis()
+
+        // Check for check condition and play sound
+        if (board.isInCheck(board.currentPlayer)) {
+            soundManager.playCheckSound()
+        }
 
         onBoardUpdated?.invoke(board)
         onMoveCompleted?.invoke(move)
@@ -143,6 +158,13 @@ class GameController(
                 val move = ai.findBestMove(board, moveHistory)
 
                 if (move != null) {
+                    // Play appropriate sound
+                    if (move.capturedPiece != null) {
+                        soundManager.playCaptureSound()
+                    } else {
+                        soundManager.playMoveSound()
+                    }
+
                     // Update score if capturing
                     if (move.capturedPiece != null) {
                         val captureValue = move.capturedPiece.type.baseValue
@@ -156,6 +178,11 @@ class GameController(
                     board.makeMoveInPlace(move)
                     moveHistory.add(move)
                     currentMoveStartTime = System.currentTimeMillis()
+
+                    // Check for check condition and play sound
+                    if (board.isInCheck(board.currentPlayer)) {
+                        soundManager.playCheckSound()
+                    }
 
                     onBoardUpdated?.invoke(board)
                     onMoveCompleted?.invoke(move)
@@ -179,11 +206,13 @@ class GameController(
     private fun checkGameOver(): Boolean {
         when {
             board.isCheckmate() -> {
+                soundManager.playGameOverSound()
                 val winner = board.currentPlayer.opposite()
                 onGameOver?.invoke(GameResult.Checkmate(winner))
                 return true
             }
             board.isStalemate() -> {
+                soundManager.playGameOverSound()
                 onGameOver?.invoke(GameResult.Stalemate)
                 return true
             }
@@ -244,5 +273,14 @@ class GameController(
 
     fun destroy() {
         coroutineScope.cancel()
+        soundManager.release()
+    }
+
+    fun setSoundEnabled(enabled: Boolean) {
+        soundManager.setEnabled(enabled)
+    }
+
+    fun isSoundEnabled(): Boolean {
+        return soundManager.isEnabled()
     }
 }

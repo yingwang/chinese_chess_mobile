@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5E6D3"
+    android:background="#E8D8C8"
     tools:context=".MainActivity">
 
     <!-- Game Info Panel -->
@@ -13,11 +13,11 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="12dp"
         android:layout_marginEnd="16dp"
-        android:background="#E8D4B8"
+        android:background="@drawable/info_panel_background"
+        android:elevation="4dp"
         android:orientation="vertical"
-        android:padding="8dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
@@ -35,8 +35,9 @@
                 android:layout_weight="1"
                 android:gravity="start"
                 android:text="模式: 玩家 vs AI"
-                android:textSize="12sp"
-                android:textColor="#666666" />
+                android:textSize="13sp"
+                android:textColor="#5D4E37"
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/moveCountText"
@@ -45,8 +46,9 @@
                 android:layout_weight="1"
                 android:gravity="end"
                 android:text="回合: 0"
-                android:textSize="12sp"
-                android:textColor="#666666" />
+                android:textSize="13sp"
+                android:textColor="#5D4E37"
+                android:textStyle="bold" />
         </LinearLayout>
 
         <LinearLayout
@@ -62,9 +64,10 @@
                 android:layout_weight="1"
                 android:gravity="start"
                 android:text="红方: 0"
-                android:textSize="14sp"
-                android:textColor="#D32F2F"
-                android:textStyle="bold" />
+                android:textSize="16sp"
+                android:textColor="#C82828"
+                android:textStyle="bold"
+                android:fontFamily="serif" />
 
             <TextView
                 android:id="@+id/gameTimeText"
@@ -73,8 +76,10 @@
                 android:layout_weight="1"
                 android:gravity="center"
                 android:text="00:00"
-                android:textSize="14sp"
-                android:textColor="#666666" />
+                android:textSize="16sp"
+                android:textColor="#5D4E37"
+                android:textStyle="bold"
+                android:fontFamily="monospace" />
 
             <TextView
                 android:id="@+id/blackScoreText"
@@ -83,9 +88,10 @@
                 android:layout_weight="1"
                 android:gravity="end"
                 android:text="黑方: 0"
-                android:textSize="14sp"
-                android:textColor="#000000"
-                android:textStyle="bold" />
+                android:textSize="16sp"
+                android:textColor="#1E1E1E"
+                android:textStyle="bold"
+                android:fontFamily="serif" />
         </LinearLayout>
     </LinearLayout>
 
@@ -108,9 +114,14 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:text="红方走棋"
-            android:textSize="24sp"
+            android:textSize="26sp"
             android:textStyle="bold"
-            android:textColor="#000000" />
+            android:textColor="#5D4E37"
+            android:fontFamily="serif"
+            android:shadowColor="#80000000"
+            android:shadowDx="1"
+            android:shadowDy="1"
+            android:shadowRadius="2" />
 
         <ProgressBar
             android:id="@+id/aiThinkingIndicator"
@@ -136,12 +147,12 @@
     <ScrollView
         android:id="@+id/moveHistoryContainer"
         android:layout_width="0dp"
-        android:layout_height="60dp"
+        android:layout_height="70dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="8dp"
-        android:background="#E8D4B8"
-        android:padding="8dp"
+        android:background="@drawable/info_panel_background"
+        android:elevation="2dp"
         app:layout_constraintBottom_toTopOf="@+id/buttonContainer"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
@@ -151,8 +162,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="棋谱:"
-            android:textSize="12sp"
-            android:textColor="#666666"
+            android:textSize="13sp"
+            android:textColor="#5D4E37"
             android:fontFamily="monospace" />
     </ScrollView>
 
@@ -171,20 +182,30 @@
         <Button
             android:id="@+id/newGameButton"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
+            android:layout_height="56dp"
+            android:layout_marginEnd="12dp"
             android:layout_weight="1"
             android:text="新游戏"
-            android:textSize="16sp" />
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:fontFamily="serif"
+            android:background="@drawable/button_selector"
+            android:elevation="4dp" />
 
         <Button
             android:id="@+id/undoButton"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
+            android:layout_height="56dp"
+            android:layout_marginStart="12dp"
             android:layout_weight="1"
             android:text="悔棋"
-            android:textSize="16sp" />
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:fontFamily="serif"
+            android:background="@drawable/button_selector"
+            android:elevation="4dp" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
