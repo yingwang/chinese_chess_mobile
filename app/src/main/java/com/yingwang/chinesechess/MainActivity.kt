@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.yingwang.chinesechess.audio.GameAudioManager
 import com.yingwang.chinesechess.model.PieceColor
 import com.yingwang.chinesechess.ui.BoardView
 import kotlinx.coroutines.delay
@@ -31,15 +32,27 @@ class MainActivity : AppCompatActivity() {
     private lateinit var gameTimeText: TextView
     private lateinit var moveCountText: TextView
     private lateinit var moveHistoryText: TextView
+    private lateinit var audioManager: GameAudioManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        audioManager = GameAudioManager(this)
         initViews()
         setupGameController()
         gameController.startNewGame()
         startTimerUpdates()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        audioManager.startBackgroundMusic()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        audioManager.pauseBackgroundMusic()
     }
 
     private fun initViews() {
@@ -109,6 +122,12 @@ class MainActivity : AppCompatActivity() {
         gameController.onMoveCompleted = { move ->
             runOnUiThread {
                 boardView.highlightMove(move)
+                // Play appropriate sound effect
+                if (move.capturedPiece != null) {
+                    audioManager.playCaptureSound()
+                } else {
+                    audioManager.playMoveSound()
+                }
             }
         }
 
@@ -402,5 +421,6 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         gameController.destroy()
+        audioManager.release()
     }
 }
