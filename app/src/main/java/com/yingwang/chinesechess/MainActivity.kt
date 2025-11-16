@@ -40,7 +40,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         audioManager = GameAudioManager(this)
-        gameController = GameController(AIDifficulty.PROFESSIONAL)
+        gameController = GameController(this, AIDifficulty.PROFESSIONAL)
         initViews()
         setupGameController()
         gameController.startNewGame()
@@ -85,7 +85,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupGameController() {
-        gameController = GameController(this, GameController.AIDifficulty.PROFESSIONAL)
+        setupGameControllerCallbacks()
+    }
 
     private fun setupGameControllerCallbacks() {
         gameController.onBoardUpdated = { board ->
