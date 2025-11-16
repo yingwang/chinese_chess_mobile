@@ -10,44 +10,66 @@ object OpeningBook {
 
     // Common opening patterns stored as move sequences
     // Format: "from_row,from_col,to_row,to_col"
+    // Board coordinate system: Row 0-2 is BLACK (top), Row 7-9 is RED (bottom)
+    // RED moves first
     private val openingMoves = mapOf(
         // Red's first move options (popular openings)
         listOf<String>() to listOf(
-            "2,1,4,2",  // 炮二平五 (Center Cannon)
-            "2,7,4,6",  // 炮八平五 (Center Cannon)
-            "0,1,2,2",  // 马二进三 (Horse opening)
-            "0,7,2,6",  // 马八进七 (Horse opening)
+            "7,1,7,4",  // 炮二平五 (Center Cannon - left cannon to center)
+            "7,7,7,4",  // 炮八平五 (Center Cannon - right cannon to center)
+            "9,1,7,2",  // 马二进三 (Horse opening - left horse forward)
+            "9,7,7,6",  // 马八进七 (Horse opening - right horse forward)
+            "6,4,5,4",  // 兵五进一 (Center pawn forward)
         ),
 
-        // Response to Center Cannon (炮二平五)
-        listOf("2,1,4,2") to listOf(
-            "7,7,5,6",  // 马8进7 (Screen Horse Defense)
-            "7,1,5,2",  // 马2进3 (Screen Horse Defense)
-            "7,7,5,8",  // 马8进9 (Edge Horse Defense)
+        // Black's response to Center Cannon (炮二平五)
+        listOf("7,1,7,4") to listOf(
+            "0,7,2,6",  // 马8进7 (Screen Horse Defense - right horse)
+            "0,1,2,2",  // 马2进3 (Screen Horse Defense - left horse)
+            "2,7,2,4",  // 炮8平5 (Counter Center Cannon)
+            "3,4,2,4",  // 卒5进1 (Center pawn forward)
         ),
 
-        // Response to Center Cannon (炮八平五)
-        listOf("2,7,4,6") to listOf(
-            "7,7,5,6",  // 马8进7 (Screen Horse Defense)
-            "7,1,5,2",  // 马2进3 (Screen Horse Defense)
+        // Black's response to Center Cannon (炮八平五)
+        listOf("7,7,7,4") to listOf(
+            "0,7,2,6",  // 马8进7 (Screen Horse Defense)
+            "0,1,2,2",  // 马2进3 (Screen Horse Defense)
+            "2,1,2,4",  // 炮2平5 (Counter Center Cannon)
         ),
 
         // Red's second move after Center Cannon + Black Screen Horse
-        listOf("2,1,4,2", "7,7,5,6") to listOf(
-            "0,1,2,2",  // 马二进三
-            "0,7,2,6",  // 马八进七
+        listOf("7,1,7,4", "0,7,2,6") to listOf(
+            "9,1,7,2",  // 马二进三 (Develop left horse)
+            "9,7,7,6",  // 马八进七 (Develop right horse)
+            "7,7,7,6",  // 炮八平七 (Position right cannon)
         ),
 
-        // Response to Horse opening (马二进三)
-        listOf("0,1,2,2") to listOf(
-            "7,7,5,6",  // 马8进7
-            "7,1,5,2",  // 马2进3
+        // Red's second move after Center Cannon + Black left Screen Horse
+        listOf("7,1,7,4", "0,1,2,2") to listOf(
+            "9,7,7,6",  // 马八进七 (Develop right horse)
+            "9,1,7,2",  // 马二进三 (Develop left horse)
+            "7,7,7,2",  // 炮八平三 (Position right cannon)
         ),
 
-        // Symmetrical responses for common patterns
-        listOf("2,1,4,2", "7,7,5,6", "0,1,2,2") to listOf(
-            "7,1,5,2",  // 马2进3
-            "9,0,8,0",  // 车9平8
+        // Black's response to Horse opening (马二进三)
+        listOf("9,1,7,2") to listOf(
+            "0,7,2,6",  // 马8进7 (Defend with horse)
+            "0,1,2,2",  // 马2进3 (Mirror response)
+            "2,7,5,7",  // 炮8进3 (Advance right cannon)
+        ),
+
+        // Black's response to Horse opening (马八进七)
+        listOf("9,7,7,6") to listOf(
+            "0,1,2,2",  // 马2进3 (Defend with horse)
+            "0,7,2,6",  // 马8进7 (Mirror response)
+            "2,1,5,1",  // 炮2进3 (Advance left cannon)
+        ),
+
+        // Red's third move in classic Cannon + Horse opening
+        listOf("7,1,7,4", "0,7,2,6", "9,1,7,2") to listOf(
+            "9,0,8,0",  // 车一平二 (Develop left chariot)
+            "7,7,6,7",  // 炮八进一 (Advance right cannon)
+            "6,2,5,2",  // 兵三进一 (Advance left pawn)
         ),
     )
 

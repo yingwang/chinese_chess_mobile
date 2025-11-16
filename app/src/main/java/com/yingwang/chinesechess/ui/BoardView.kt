@@ -92,6 +92,20 @@ class BoardView @JvmOverloads constructor(
         style = Paint.Style.FILL
     }
 
+    private val legalMoveBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(200, 50, 100, 255) // Blue border
+        strokeWidth = 4f
+        style = Paint.Style.STROKE
+        pathEffect = DashPathEffect(floatArrayOf(10f, 5f), 0f) // Dashed line
+    }
+
+    private val captureIndicatorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(200, 255, 80, 80) // Red border for capture
+        strokeWidth = 4f
+        style = Paint.Style.STROKE
+        pathEffect = DashPathEffect(floatArrayOf(10f, 5f), 0f) // Dashed line
+    }
+
     private val lastMovePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.argb(100, 255, 215, 100) // Soft gold
         style = Paint.Style.FILL
@@ -340,28 +354,39 @@ class BoardView @JvmOverloads constructor(
             val x = offsetX + pos.col * cellSize
             val y = offsetY + pos.row * cellSize
 
-            // Draw selection with border
-            canvas.drawCircle(x, y, cellSize * 0.4f, selectionPaint)
-            canvas.drawCircle(x, y, cellSize * 0.4f, selectionBorderPaint)
+            // Draw selection with enhanced highlighting
+            // First, draw a larger outer glow
+            val outerGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.argb(60, 100, 200, 100)
+                style = Paint.Style.FILL
+            }
+            canvas.drawCircle(x, y, cellSize * 0.5f, outerGlowPaint)
 
-            // Draw legal move indicators with ring style
+            // Then draw the main selection
+            canvas.drawCircle(x, y, cellSize * 0.4f, selectionPaint)
+
+            // Draw a thicker, more visible border
+            val thickBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.argb(255, 50, 200, 50) // Brighter green
+                strokeWidth = 5f
+                style = Paint.Style.STROKE
+            }
+            canvas.drawCircle(x, y, cellSize * 0.4f, thickBorderPaint)
+
+            // Draw legal move indicators
             for (move in legalMoves) {
                 val moveX = offsetX + move.to.col * cellSize
                 val moveY = offsetY + move.to.row * cellSize
 
                 // Check if there's a piece at this position (capture move)
                 if (move.capturedPiece != null) {
-                    // Draw capture indicator as a ring
-                    canvas.drawCircle(moveX, moveY, cellSize * 0.42f, legalMovePaint)
-                    val captureBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                        color = Color.argb(200, 200, 50, 50)
-                        strokeWidth = 3f
-                        style = Paint.Style.STROKE
-                    }
-                    canvas.drawCircle(moveX, moveY, cellSize * 0.42f, captureBorderPaint)
+                    // Draw capture indicator with red dashed border and small fill
+                    canvas.drawCircle(moveX, moveY, cellSize * 0.1f, legalMovePaint)
+                    canvas.drawCircle(moveX, moveY, cellSize * 0.42f, captureIndicatorPaint)
                 } else {
-                    // Draw regular move indicator as a dot
-                    canvas.drawCircle(moveX, moveY, cellSize * 0.15f, legalMovePaint)
+                    // Draw regular move indicator with blue dashed border
+                    canvas.drawCircle(moveX, moveY, cellSize * 0.1f, legalMovePaint)
+                    canvas.drawCircle(moveX, moveY, cellSize * 0.35f, legalMoveBorderPaint)
                 }
             }
         }
