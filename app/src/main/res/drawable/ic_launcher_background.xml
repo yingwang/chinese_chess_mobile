@@ -5,71 +5,64 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Rich gradient background - wood texture inspired -->
-    <!-- Base layer - dark warm brown -->
+    <!-- Classical elegant background - ink wash inspired -->
+    <!-- Base layer - deep slate gray (stone blue) -->
     <path
-        android:fillColor="#5C3317"
+        android:fillColor="#3A4A4A"
         android:pathData="M 0,0 L 108,0 L 108,108 L 0,108 Z"/>
 
-    <!-- Top gradient layer - lighter brown for depth -->
+    <!-- Middle layer - warm dark olive -->
     <path
-        android:fillColor="#30CD853F"
-        android:pathData="M 0,0 L 108,0 L 108,70 L 0,70 Z"/>
+        android:fillColor="#25453E2F"
+        android:pathData="M 0,20 L 108,20 L 108,108 L 0,108 Z"/>
 
-    <!-- Upper highlight for gradient effect -->
+    <!-- Bottom darker layer for depth -->
     <path
-        android:fillColor="#20DEB887"
-        android:pathData="M 0,0 L 108,0 L 108,40 L 0,40 Z"/>
+        android:fillColor="#20252520"
+        android:pathData="M 0,70 L 108,70 L 108,108 L 0,108 Z"/>
 
-    <!-- Subtle radial glow from center -->
+    <!-- Subtle center radial highlight - soft beige glow -->
     <path
-        android:fillColor="#15F5DEB3"
-        android:pathData="M 54,54 m -50,0 a 50,50 0 1,0 100,0 a 50,50 0 1,0 -100,0"/>
+        android:fillColor="#10D4C5B0"
+        android:pathData="M 54,54 m -45,0 a 45,45 0 1,0 90,0 a 45,45 0 1,0 -90,0"/>
 
-    <!-- Traditional decorative corners - gold accents -->
-    <!-- Top-left corner -->
+    <!-- Traditional corner decorations - bronze tone -->
+    <!-- Top-left -->
     <path
-        android:strokeColor="#60D4AF37"
-        android:strokeWidth="2.5"
+        android:strokeColor="#408B6914"
+        android:strokeWidth="2"
         android:strokeLineCap="round"
         android:fillColor="#00000000"
-        android:pathData="M 10,10 L 24,10 M 10,10 L 10,24"/>
+        android:pathData="M 12,12 L 22,12 M 12,12 L 12,22"/>
 
-    <!-- Top-right corner -->
+    <!-- Top-right -->
     <path
-        android:strokeColor="#60D4AF37"
-        android:strokeWidth="2.5"
+        android:strokeColor="#408B6914"
+        android:strokeWidth="2"
         android:strokeLineCap="round"
         android:fillColor="#00000000"
-        android:pathData="M 84,10 L 98,10 M 98,10 L 98,24"/>
+        android:pathData="M 86,12 L 96,12 M 96,12 L 96,22"/>
 
-    <!-- Bottom-left corner -->
+    <!-- Bottom-left -->
     <path
-        android:strokeColor="#60D4AF37"
-        android:strokeWidth="2.5"
+        android:strokeColor="#408B6914"
+        android:strokeWidth="2"
         android:strokeLineCap="round"
         android:fillColor="#00000000"
-        android:pathData="M 10,84 L 24,84 M 10,84 L 10,98"/>
+        android:pathData="M 12,86 L 22,86 M 12,86 L 12,96"/>
 
-    <!-- Bottom-right corner -->
+    <!-- Bottom-right -->
     <path
-        android:strokeColor="#60D4AF37"
-        android:strokeWidth="2.5"
+        android:strokeColor="#408B6914"
+        android:strokeWidth="2"
         android:strokeLineCap="round"
         android:fillColor="#00000000"
-        android:pathData="M 84,98 L 98,98 M 98,84 L 98,98"/>
+        android:pathData="M 86,96 L 96,96 M 96,86 L 96,96"/>
 
-    <!-- Subtle decorative frame -->
+    <!-- Subtle frame -->
     <path
-        android:strokeColor="#25D4AF37"
-        android:strokeWidth="1"
+        android:strokeColor="#206B5D1F"
+        android:strokeWidth="0.8"
         android:fillColor="#00000000"
-        android:pathData="M 20,20 L 88,20 L 88,88 L 20,88 Z"/>
-
-    <!-- Inner decorative diamond -->
-    <path
-        android:strokeColor="#20FFD700"
-        android:strokeWidth="1"
-        android:fillColor="#00000000"
-        android:pathData="M 54,30 L 78,54 L 54,78 L 30,54 Z"/>
+        android:pathData="M 25,25 L 83,25 L 83,83 L 25,83 Z"/>
 </vector>

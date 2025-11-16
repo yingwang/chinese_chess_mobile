@@ -5,116 +5,93 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Chess piece shadow for depth -->
+    <!-- Chess piece shadow -->
     <path
-        android:fillColor="#30000000"
-        android:pathData="M 54,56 m -30,0 a 30,30 0 1,0 60,0 a 30,30 0 1,0 -60,0"/>
+        android:fillColor="#25000000"
+        android:pathData="M 54,56 m -29,0 a 29,29 0 1,0 58,0 a 29,29 0 1,0 -58,0"/>
 
-    <!-- Main chess piece circle - outer ring (metallic gold) -->
+    <!-- Outer ring - aged bronze -->
     <path
-        android:fillColor="#B8860B"
-        android:pathData="M 54,54 m -32,0 a 32,32 0 1,0 64,0 a 32,32 0 1,0 -64,0"/>
-
-    <!-- Gold highlight ring -->
-    <path
-        android:fillColor="#D4AF37"
+        android:fillColor="#6B5D1F"
         android:pathData="M 54,54 m -30,0 a 30,30 0 1,0 60,0 a 30,30 0 1,0 -60,0"/>
 
-    <!-- Inner circle - base (deep red) -->
-    <path
-        android:fillColor="#8B0000"
-        android:pathData="M 54,54 m -28,0 a 28,28 0 1,0 56,0 a 28,28 0 1,0 -56,0"/>
-
-    <!-- Inner circle - gradient layer (medium red) -->
-    <path
-        android:fillColor="#C41E3A"
-        android:pathData="M 54,54 m -26,0 a 26,26 0 1,0 52,0 a 26,26 0 1,0 -52,0"/>
-
-    <!-- Inner circle - top highlight (bright red gradient) -->
-    <path
-        android:fillColor="#DC143C"
-        android:pathData="M 54,46 m -22,0 a 22,22 0 1,0 44,0 a 22,22 0 1,0 -44,0"/>
-
-    <!-- Radial highlight for 3D effect (cream/beige center) -->
+    <!-- Inner circle - ivory/bone color base -->
     <path
         android:fillColor="#F5F5DC"
-        android:pathData="M 54,54 m -24,0 a 24,24 0 1,0 48,0 a 24,24 0 1,0 -48,0"/>
+        android:pathData="M 54,54 m -27,0 a 27,27 0 1,0 54,0 a 27,27 0 1,0 -54,0"/>
 
-    <!-- Lighter gradient overlay -->
+    <!-- Subtle gradient overlay - cream -->
     <path
-        android:fillColor="#FAEBD7"
-        android:pathData="M 54,50 m -20,0 a 20,20 0 1,0 40,0 a 20,20 0 1,0 -40,0"/>
+        android:fillColor="#FFFEF0"
+        android:pathData="M 54,48 m -24,0 a 24,24 0 1,0 48,0 a 24,24 0 1,0 -48,0"/>
 
-    <!-- Chinese character "将" (General) - enhanced with shadow -->
-    <!-- Character shadow for depth -->
+    <!-- Light wash for depth -->
     <path
-        android:fillColor="#40000000"
-        android:pathData="M 37,44 L 71,44 L 71,46.5 L 37,46.5 Z"/>
-    <path
-        android:fillColor="#40000000"
-        android:pathData="M 42,44 L 44.5,44 L 44.5,64 L 42,64 Z"/>
-    <path
-        android:fillColor="#40000000"
-        android:pathData="M 37,51 L 71,51 L 71,53.5 L 37,53.5 Z"/>
-    <path
-        android:fillColor="#40000000"
-        android:pathData="M 63.5,44 L 66,44 L 66,64 L 63.5,64 Z"/>
-    <path
-        android:fillColor="#40000000"
-        android:pathData="M 46,57 L 62,57 L 62,59.5 L 46,59.5 Z"/>
-    <path
-        android:fillColor="#40000000"
-        android:pathData="M 37,62 L 71,62 L 71,64.5 L 37,64.5 Z"/>
+        android:fillColor="#FFF8F0"
+        android:pathData="M 54,50 m -22,0 a 22,22 0 1,0 44,0 a 22,22 0 1,0 -44,0"/>
 
-    <!-- Horizontal stroke 1 (top) - bright gold -->
-    <path
-        android:fillColor="#FFD700"
-        android:pathData="M 36,43 L 70,43 L 70,45.5 L 36,45.5 Z"/>
+    <!-- Simplified "象" character (Elephant/Piece) -->
+    <!-- Using ink/vermillion tone - subdued red-brown -->
 
-    <!-- Vertical stroke (left) -->
+    <!-- Top horizontal stroke -->
     <path
-        android:fillColor="#FFD700"
-        android:pathData="M 41,43 L 43.5,43 L 43.5,63 L 41,63 Z"/>
+        android:fillColor="#8B4513"
+        android:pathData="M 38,40 L 70,40 L 70,42.5 L 38,42.5 Z"/>
 
-    <!-- Horizontal stroke 2 (middle-top) -->
+    <!-- Left撇 (pie - downward left stroke) -->
     <path
-        android:fillColor="#FFD700"
-        android:pathData="M 36,50 L 70,50 L 70,52.5 L 36,52.5 Z"/>
+        android:fillColor="#8B4513"
+        android:pathData="M 44,42 L 46,42 L 42,48 L 40,48 Z"/>
 
-    <!-- Vertical stroke (right) -->
+    <!-- Right撇 (pie - downward right stroke) -->
     <path
-        android:fillColor="#FFD700"
-        android:pathData="M 64.5,43 L 67,43 L 67,63 L 64.5,63 Z"/>
+        android:fillColor="#8B4513"
+        android:pathData="M 62,42 L 64,42 L 68,48 L 66,48 Z"/>
 
-    <!-- Horizontal stroke 3 (middle) -->
+    <!-- Middle horizontal stroke -->
     <path
-        android:fillColor="#FFD700"
-        android:pathData="M 45,56 L 63,56 L 63,58.5 L 45,58.5 Z"/>
+        android:fillColor="#8B4513"
+        android:pathData="M 40,50 L 68,50 L 68,52.5 L 40,52.5 Z"/>
 
-    <!-- Horizontal stroke 4 (bottom) -->
+    <!-- Left vertical -->
     <path
-        android:fillColor="#FFD700"
-        android:pathData="M 36,61 L 70,61 L 70,63.5 L 36,63.5 Z"/>
+        android:fillColor="#8B4513"
+        android:pathData="M 42,50 L 44.5,50 L 44.5,66 L 42,66 Z"/>
 
-    <!-- Highlight accents on character strokes -->
+    <!-- Right vertical -->
     <path
-        android:fillColor="#FFFACD"
-        android:pathData="M 36,43 L 70,43 L 70,44 L 36,44 Z"/>
-    <path
-        android:fillColor="#FFFACD"
-        android:pathData="M 36,50 L 70,50 L 70,51 L 36,51 Z"/>
+        android:fillColor="#8B4513"
+        android:pathData="M 63.5,50 L 66,50 L 66,66 L 63.5,66 Z"/>
 
-    <!-- Inner decorative ring -->
+    <!-- Middle section - simplified "豕" radical -->
     <path
-        android:strokeColor="#50D4AF37"
+        android:fillColor="#8B4513"
+        android:pathData="M 47,55 L 61,55 L 61,57 L 47,57 Z"/>
+
+    <path
+        android:fillColor="#8B4513"
+        android:pathData="M 50,57 L 52,57 L 52,62 L 50,62 Z"/>
+
+    <path
+        android:fillColor="#8B4513"
+        android:pathData="M 56,57 L 58,57 L 58,62 L 56,62 Z"/>
+
+    <!-- Bottom stroke -->
+    <path
+        android:fillColor="#8B4513"
+        android:pathData="M 42,64 L 66,64 L 66,66.5 L 42,66.5 Z"/>
+
+    <!-- Decorative bronze ring -->
+    <path
+        android:strokeColor="#6B5D1F"
         android:strokeWidth="2"
         android:fillColor="#00000000"
-        android:pathData="M 54,54 m -28,0 a 28,28 0 1,0 56,0 a 28,28 0 1,0 -56,0"/>
+        android:pathData="M 54,54 m -27,0 a 27,27 0 1,0 54,0 a 27,27 0 1,0 -54,0"/>
 
-    <!-- Outer decorative border (gold accent) -->
+    <!-- Subtle inner ring accent -->
     <path
-        android:strokeColor="#D4AF37"
-        android:strokeWidth="2.5"
+        android:strokeColor="#30C9A976"
+        android:strokeWidth="1"
         android:fillColor="#00000000"
-        android:pathData="M 54,54 m -30,0 a 30,30 0 1,0 60,0 a 30,30 0 1,0 -60,0"/>
+        android:pathData="M 54,54 m -24,0 a 24,24 0 1,0 48,0 a 24,24 0 1,0 -48,0"/>
 </vector>
