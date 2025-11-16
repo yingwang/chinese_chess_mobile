@@ -23,68 +23,89 @@ class BoardView @JvmOverloads constructor(
 
     // Drawing properties
     private val boardPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.rgb(220, 179, 92)
+        // Wooden board color with richer tone
+        color = Color.rgb(205, 170, 125)
         style = Paint.Style.FILL
     }
 
+    private val boardShadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(60, 0, 0, 0)
+        style = Paint.Style.FILL
+        setShadowLayer(12f, 4f, 4f, Color.argb(100, 0, 0, 0))
+    }
+
     private val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.BLACK
-        strokeWidth = 2f
+        color = Color.rgb(80, 50, 30) // Dark brown for lines
+        strokeWidth = 2.5f
         style = Paint.Style.STROKE
     }
 
     private val thickLinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.BLACK
-        strokeWidth = 4f
+        color = Color.rgb(60, 40, 20) // Darker brown for border
+        strokeWidth = 5f
         style = Paint.Style.STROKE
     }
 
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.BLACK
+        color = Color.rgb(100, 70, 50) // Warm brown
         textAlign = Paint.Align.CENTER
-        typeface = Typeface.DEFAULT_BOLD
+        typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
     }
 
     private val redPiecePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.RED
+        color = Color.rgb(200, 40, 40) // Rich red
         style = Paint.Style.FILL
     }
 
     private val redTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.RED
+        color = Color.rgb(200, 40, 40) // Rich red
         textAlign = Paint.Align.CENTER
-        typeface = Typeface.DEFAULT_BOLD
+        typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
+        setShadowLayer(3f, 1f, 1f, Color.argb(100, 0, 0, 0))
     }
 
     private val blackPiecePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.BLACK
+        color = Color.rgb(30, 30, 30) // Deep black
         style = Paint.Style.FILL
     }
 
     private val blackTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.BLACK
+        color = Color.rgb(30, 30, 30) // Deep black
         textAlign = Paint.Align.CENTER
-        typeface = Typeface.DEFAULT_BOLD
+        typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
+        setShadowLayer(3f, 1f, 1f, Color.argb(100, 255, 255, 255))
     }
 
     private val selectionPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(100, 0, 255, 0)
+        color = Color.argb(120, 100, 200, 100) // Soft green
         style = Paint.Style.FILL
     }
 
+    private val selectionBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(200, 50, 150, 50) // Green border
+        strokeWidth = 4f
+        style = Paint.Style.STROKE
+    }
+
     private val legalMovePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(100, 0, 0, 255)
+        color = Color.argb(120, 100, 150, 200) // Soft blue
         style = Paint.Style.FILL
     }
 
     private val lastMovePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(80, 255, 255, 0)
+        color = Color.argb(100, 255, 215, 100) // Soft gold
         style = Paint.Style.FILL
     }
 
     private val movedPieceHighlightPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.rgb(255, 165, 0) // Orange color
-        strokeWidth = 5f
+        color = Color.rgb(220, 140, 60) // Warm orange-gold
+        strokeWidth = 6f
+        style = Paint.Style.STROKE
+    }
+
+    private val pieceOutlinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(80, 60, 40) // Dark brown outline
+        strokeWidth = 3f
         style = Paint.Style.STROKE
     }
 
@@ -129,14 +150,28 @@ class BoardView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
-        // Draw board background
-        canvas.drawRect(
+        // Draw board shadow first
+        canvas.drawRoundRect(
+            offsetX - cellSize / 2 + 4f,
+            offsetY - cellSize / 2 + 4f,
+            offsetX + cellSize * 8.5f + 4f,
+            offsetY + cellSize * 9.5f + 4f,
+            8f, 8f,
+            boardShadowPaint
+        )
+
+        // Draw board background with wood texture effect
+        canvas.drawRoundRect(
             offsetX - cellSize / 2,
             offsetY - cellSize / 2,
             offsetX + cellSize * 8.5f,
             offsetY + cellSize * 9.5f,
+            8f, 8f,
             boardPaint
         )
+
+        // Add subtle wood grain effect
+        drawWoodGrain(canvas)
 
         drawGrid(canvas)
         drawRiverText(canvas)
@@ -145,6 +180,25 @@ class BoardView @JvmOverloads constructor(
         drawLastMove(canvas)
         drawSelection(canvas)
         drawPieces(canvas)
+    }
+
+    private fun drawWoodGrain(canvas: Canvas) {
+        val grainPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(15, 100, 60, 30)
+            strokeWidth = 1f
+            style = Paint.Style.STROKE
+        }
+
+        for (i in 0..18) {
+            val y = offsetY - cellSize / 2 + (cellSize * 10 / 18f) * i
+            canvas.drawLine(
+                offsetX - cellSize / 2,
+                y,
+                offsetX + cellSize * 8.5f,
+                y,
+                grainPaint
+            )
+        }
     }
 
     private fun drawGrid(canvas: Canvas) {
@@ -284,13 +338,30 @@ class BoardView @JvmOverloads constructor(
         selectedPosition?.let { pos ->
             val x = offsetX + pos.col * cellSize
             val y = offsetY + pos.row * cellSize
-            canvas.drawCircle(x, y, cellSize * 0.4f, selectionPaint)
 
-            // Draw legal move indicators
+            // Draw selection with border
+            canvas.drawCircle(x, y, cellSize * 0.4f, selectionPaint)
+            canvas.drawCircle(x, y, cellSize * 0.4f, selectionBorderPaint)
+
+            // Draw legal move indicators with ring style
             for (move in legalMoves) {
                 val moveX = offsetX + move.to.col * cellSize
                 val moveY = offsetY + move.to.row * cellSize
-                canvas.drawCircle(moveX, moveY, cellSize * 0.15f, legalMovePaint)
+
+                // Check if there's a piece at this position (capture move)
+                if (move.capturedPiece != null) {
+                    // Draw capture indicator as a ring
+                    canvas.drawCircle(moveX, moveY, cellSize * 0.42f, legalMovePaint)
+                    val captureBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        color = Color.argb(200, 200, 50, 50)
+                        strokeWidth = 3f
+                        style = Paint.Style.STROKE
+                    }
+                    canvas.drawCircle(moveX, moveY, cellSize * 0.42f, captureBorderPaint)
+                } else {
+                    // Draw regular move indicator as a dot
+                    canvas.drawCircle(moveX, moveY, cellSize * 0.15f, legalMovePaint)
+                }
             }
         }
     }
@@ -309,19 +380,47 @@ class BoardView @JvmOverloads constructor(
         // Check if this is the piece that was just moved
         val isMovedPiece = lastMove?.to == piece.position
 
-        // Draw piece circle
-        val piecePaint = if (piece.color == PieceColor.RED) redPiecePaint else blackPiecePaint
+        // Create gradient for piece background
+        val gradient = RadialGradient(
+            x - radius * 0.3f, y - radius * 0.3f, radius * 1.5f,
+            intArrayOf(
+                Color.rgb(255, 245, 220), // Light cream at top-left (highlight)
+                Color.rgb(235, 215, 180), // Medium beige
+                Color.rgb(210, 190, 160)  // Darker beige at bottom-right (shadow)
+            ),
+            floatArrayOf(0f, 0.5f, 1f),
+            android.graphics.Shader.TileMode.CLAMP
+        )
+
         val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.rgb(245, 222, 179)
+            shader = gradient
             style = Paint.Style.FILL
+            setShadowLayer(8f, 2f, 2f, Color.argb(120, 0, 0, 0))
         }
 
+        // Draw piece shadow
+        val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(60, 0, 0, 0)
+            style = Paint.Style.FILL
+        }
+        canvas.drawCircle(x + 3f, y + 3f, radius, shadowPaint)
+
+        // Draw piece circle with gradient
         canvas.drawCircle(x, y, radius, circlePaint)
-        canvas.drawCircle(x, y, radius, linePaint)
+
+        // Draw piece outline
+        canvas.drawCircle(x, y, radius, pieceOutlinePaint)
 
         // Draw highlight border around moved piece
         if (isMovedPiece) {
             canvas.drawCircle(x, y, radius + cellSize * 0.08f, movedPieceHighlightPaint)
+            // Add inner glow effect
+            val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.argb(80, 255, 200, 100)
+                strokeWidth = 2f
+                style = Paint.Style.STROKE
+            }
+            canvas.drawCircle(x, y, radius - 3f, glowPaint)
         }
 
         // Draw piece character
