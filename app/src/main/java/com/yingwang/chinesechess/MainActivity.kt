@@ -93,6 +93,10 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 boardView.setBoard(board)
                 updateStatus(board.currentPlayer)
+                // Clear move highlight when starting a new game (empty move history)
+                if (gameController.getMoveHistory().isEmpty()) {
+                    boardView.highlightMove(null)
+                }
             }
         }
 
