@@ -22,11 +22,19 @@ The AI uses state-of-the-art game engine techniques:
 
 ### AI Difficulty Levels
 
-- **Beginner** (Depth 2, 1s) - Good for learning
-- **Intermediate** (Depth 4, 3s) - Casual play
-- **Advanced** (Depth 5, 5s) - Challenging opponent
-- **Professional** (Depth 6, 8s) - Strong amateur level
-- **Master** (Depth 7, 15s) - Near professional level
+- **Beginner** (Depth 1, 0.5s) - Good for learning
+- **Intermediate** (Depth 2, 1s) - Casual play
+- **Advanced** (Depth 3, 2s) - Challenging opponent
+- **Professional** (Depth 4, 4s) - Strong amateur level
+- **Master** (Depth 5, 6s) - Near professional level
+
+### Opening Book
+
+The AI uses an opening book for the first few moves, featuring classic Chinese chess openings:
+- **Center Cannon** (中炮) - Aggressive central control
+- **Horse Openings** (马局) - Flexible development
+- **Screen Horse Defense** (屏风马) - Solid defensive structure
+- **Counter Cannon** (对攻) - Direct confrontation
 
 ## Technical Details
 
@@ -99,10 +107,12 @@ cd chinese_chess_mobile
    - Red side moves first
 
 2. **Making Moves**
-   - Tap a piece to select it
-   - Legal moves are shown with blue dots
+   - Tap a piece to select it - selected piece has a bright green glow
+   - Legal moves are shown with indicators:
+     - Blue dashed circles: normal moves
+     - Red dashed circles: capture moves
    - Tap destination to move
-   - Selected piece is highlighted in green
+   - Move indicators show even when destination square is occupied
 
 3. **Game Controls**
    - **悔棋 (Undo)** - Take back the last move(s)
@@ -129,7 +139,7 @@ GPL-3.0 License - see LICENSE file for details
 ## Future Enhancements
 
 Potential improvements:
-- Opening book for known strong openings
+- ~~Opening book for known strong openings~~ ✅ **Implemented in v1.1.0**
 - Endgame tablebase
 - Machine learning evaluation
 - Online multiplayer
@@ -137,3 +147,5 @@ Potential improvements:
 - Save/load games
 - Position setup mode
 - Replay games with annotations
+- Additional opening variations
+- Training mode with hints
