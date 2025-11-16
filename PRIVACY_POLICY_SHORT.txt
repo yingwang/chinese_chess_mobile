@@ -1,0 +1,49 @@
+PRIVACY POLICY FOR CHINESE CHESS (中国象棋)
+
+Last Updated: November 16, 2025
+
+SUMMARY: We do not collect, store, or share any personal information.
+
+Chinese Chess is a completely offline game that:
+✓ Does NOT require internet connection
+✓ Does NOT collect personal data
+✓ Does NOT track user behavior
+✓ Does NOT use analytics
+✓ Does NOT display ads
+✓ Does NOT share data with third parties
+
+LOCAL DATA STORAGE:
+The app stores these items ONLY on your device:
+- Game settings and preferences
+- Game statistics (scores, play time)
+- Audio preferences
+
+This data never leaves your device.
+
+CHILDREN'S PRIVACY:
+Safe for all ages. Does not collect information from children under 13.
+
+PERMISSIONS:
+- Storage: Save game data locally
+- Audio: Play sounds and music
+
+DATA SECURITY:
+Since we don't collect data, there's no risk to your privacy.
+
+CONTACT:
+Email: privacy@chinesechess.app
+GitHub: https://github.com/yingwang/chinese_chess_mobile
+
+Full privacy policy: https://github.com/yingwang/chinese_chess_mobile/blob/main/PRIVACY_POLICY.md
+
+---
+
+隐私政策摘要：
+
+我们不收集、存储或共享任何个人信息。
+
+中国象棋是完全离线的游戏，不需要网络，不收集个人数据，不跟踪用户行为，不显示广告。所有游戏数据仅存储在您的设备本地。
+
+适合所有年龄段，不收集儿童信息。
+
+联系方式：privacy@chinesechess.app
