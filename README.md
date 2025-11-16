@@ -136,6 +136,18 @@ This implementation features a completely rewritten AI engine with modern techni
 
 GPL-3.0 License - see LICENSE file for details
 
+## Privacy
+
+**We respect your privacy.** This app does not collect, store, or share any personal information.
+
+- No internet connection required
+- No personal data collection
+- No tracking or analytics
+- No advertisements
+- All data stored locally on your device
+
+For more details, see our [Privacy Policy](PRIVACY_POLICY.md).
+
 ## Future Enhancements
 
 Potential improvements:
