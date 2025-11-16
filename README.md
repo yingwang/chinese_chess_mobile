@@ -80,7 +80,7 @@ Special rules:
 - Gradle 8.2+
 - Kotlin 1.9.20+
 - Min SDK: 24 (Android 7.0)
-- Target SDK: 34 (Android 14)
+- Target SDK: 35 (Android 15)
 
 ### Build Instructions
 

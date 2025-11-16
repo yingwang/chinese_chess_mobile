@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.ChineseChess" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+    <style name="Theme.ChineseChess" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">#8B4513</item>
         <item name="colorPrimaryDark">#654321</item>
         <item name="colorAccent">#D2691E</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 </resources>
