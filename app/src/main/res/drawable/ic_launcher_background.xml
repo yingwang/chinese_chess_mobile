@@ -5,61 +5,71 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Background gradient effect using rectangles -->
-    <!-- Dark red base -->
+    <!-- Rich gradient background - wood texture inspired -->
+    <!-- Base layer - dark warm brown -->
     <path
-        android:fillColor="#8B0000"
+        android:fillColor="#5C3317"
         android:pathData="M 0,0 L 108,0 L 108,108 L 0,108 Z"/>
 
-    <!-- Lighter red overlay for gradient effect -->
+    <!-- Top gradient layer - lighter brown for depth -->
     <path
-        android:fillColor="#40A52A2A"
-        android:pathData="M 0,0 L 108,0 L 108,54 L 0,54 Z"/>
+        android:fillColor="#30CD853F"
+        android:pathData="M 0,0 L 108,0 L 108,70 L 0,70 Z"/>
 
-    <!-- Traditional pattern elements - decorative corners -->
-    <!-- Top-left corner pattern -->
+    <!-- Upper highlight for gradient effect -->
     <path
-        android:strokeColor="#60FFD700"
-        android:strokeWidth="2"
+        android:fillColor="#20DEB887"
+        android:pathData="M 0,0 L 108,0 L 108,40 L 0,40 Z"/>
+
+    <!-- Subtle radial glow from center -->
+    <path
+        android:fillColor="#15F5DEB3"
+        android:pathData="M 54,54 m -50,0 a 50,50 0 1,0 100,0 a 50,50 0 1,0 -100,0"/>
+
+    <!-- Traditional decorative corners - gold accents -->
+    <!-- Top-left corner -->
+    <path
+        android:strokeColor="#60D4AF37"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
         android:fillColor="#00000000"
-        android:pathData="M 8,8 L 20,8 M 8,8 L 8,20"/>
+        android:pathData="M 10,10 L 24,10 M 10,10 L 10,24"/>
 
-    <!-- Top-right corner pattern -->
+    <!-- Top-right corner -->
     <path
-        android:strokeColor="#60FFD700"
-        android:strokeWidth="2"
+        android:strokeColor="#60D4AF37"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
         android:fillColor="#00000000"
-        android:pathData="M 88,8 L 100,8 M 100,8 L 100,20"/>
+        android:pathData="M 84,10 L 98,10 M 98,10 L 98,24"/>
 
-    <!-- Bottom-left corner pattern -->
+    <!-- Bottom-left corner -->
     <path
-        android:strokeColor="#60FFD700"
-        android:strokeWidth="2"
+        android:strokeColor="#60D4AF37"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
         android:fillColor="#00000000"
-        android:pathData="M 8,88 L 20,88 M 8,88 L 8,100"/>
+        android:pathData="M 10,84 L 24,84 M 10,84 L 10,98"/>
 
-    <!-- Bottom-right corner pattern -->
+    <!-- Bottom-right corner -->
     <path
-        android:strokeColor="#60FFD700"
-        android:strokeWidth="2"
+        android:strokeColor="#60D4AF37"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
         android:fillColor="#00000000"
-        android:pathData="M 88,100 L 100,100 M 100,88 L 100,100"/>
+        android:pathData="M 84,98 L 98,98 M 98,84 L 98,98"/>
 
-    <!-- Subtle grid pattern for traditional feel -->
+    <!-- Subtle decorative frame -->
     <path
-        android:strokeColor="#20FFD700"
-        android:strokeWidth="0.5"
-        android:pathData="M 27,27 L 81,27 L 81,81 L 27,81 Z"/>
-
-    <path
-        android:strokeColor="#20FFD700"
-        android:strokeWidth="0.5"
-        android:pathData="M 54,27 L 54,81 M 27,54 L 81,54"/>
-
-    <!-- Center decorative element - subtle -->
-    <path
-        android:strokeColor="#30FFD700"
+        android:strokeColor="#25D4AF37"
         android:strokeWidth="1"
         android:fillColor="#00000000"
-        android:pathData="M 54,40 L 60,54 L 54,68 L 48,54 Z"/>
+        android:pathData="M 20,20 L 88,20 L 88,88 L 20,88 Z"/>
+
+    <!-- Inner decorative diamond -->
+    <path
+        android:strokeColor="#20FFD700"
+        android:strokeWidth="1"
+        android:fillColor="#00000000"
+        android:pathData="M 54,30 L 78,54 L 54,78 L 30,54 Z"/>
 </vector>
