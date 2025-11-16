@@ -4,14 +4,86 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Chess piece symbol -->
+
+    <!-- Main chess piece circle - outer ring (gold) -->
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M 54,24 m -26,0 a 26,26 0 1,0 52,0 a 26,26 0 1,0 -52,0"/>
+
+    <!-- Inner circle (red gradient effect) -->
+    <path
+        android:fillColor="#DC143C"
+        android:pathData="M 54,24 m -24,0 a 24,24 0 1,0 48,0 a 24,24 0 1,0 -48,0"/>
+
+    <!-- Inner circle (lighter red) -->
+    <path
+        android:fillColor="#FF6B6B"
+        android:pathData="M 54,24 m -22,0 a 22,22 0 1,0 44,0 a 22,22 0 1,0 -44,0"/>
+
+    <!-- Chinese character "将" (General) - stylized -->
+    <!-- Horizontal stroke 1 (top) -->
     <path
         android:fillColor="#FFD700"
-        android:pathData="M 40,35 L 68,35 L 68,45 L 65,45 L 65,55 L 68,55 L 68,75 L 40,75 L 40,55 L 43,55 L 43,45 L 40,45 Z"/>
-    <!-- Center circle -->
+        android:pathData="M 38,16 L 70,16 L 70,18 L 38,18 Z"/>
+
+    <!-- Vertical stroke (left) -->
     <path
         android:fillColor="#FFD700"
-        android:strokeColor="#8B4513"
+        android:pathData="M 42,16 L 44,16 L 44,32 L 42,32 Z"/>
+
+    <!-- Horizontal stroke 2 (middle-top) -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M 38,22 L 70,22 L 70,24 L 38,24 Z"/>
+
+    <!-- Vertical stroke (right) -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M 64,16 L 66,16 L 66,32 L 64,32 Z"/>
+
+    <!-- Horizontal stroke 3 (middle) -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M 46,26 L 62,26 L 62,28 L 46,28 Z"/>
+
+    <!-- Horizontal stroke 4 (bottom) -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M 38,30 L 70,30 L 70,32 L 38,32 Z"/>
+
+    <!-- Chess board pattern below -->
+    <!-- Board base -->
+    <path
+        android:fillColor="#8B4513"
+        android:pathData="M 32,54 L 76,54 L 76,84 L 32,84 Z"/>
+
+    <!-- Board lines (horizontal) -->
+    <path
+        android:strokeColor="#D2691E"
+        android:strokeWidth="1"
+        android:pathData="M 32,60 L 76,60 M 32,66 L 76,66 M 32,72 L 76,72 M 32,78 L 76,78"/>
+
+    <!-- Board lines (vertical) -->
+    <path
+        android:strokeColor="#D2691E"
+        android:strokeWidth="1"
+        android:pathData="M 38,54 L 38,84 M 44,54 L 44,84 M 50,54 L 50,84 M 56,54 L 56,84 M 62,54 L 62,84 M 68,54 L 68,84 M 74,54 L 74,84"/>
+
+    <!-- Small chess pieces on board -->
+    <!-- Red piece (left) -->
+    <path
+        android:fillColor="#DC143C"
+        android:pathData="M 40,62 m -3,0 a 3,3 0 1,0 6,0 a 3,3 0 1,0 -6,0"/>
+
+    <!-- Black piece (right) -->
+    <path
+        android:fillColor="#2C2C2C"
+        android:pathData="M 68,74 m -3,0 a 3,3 0 1,0 6,0 a 3,3 0 1,0 -6,0"/>
+
+    <!-- Decorative border around main piece -->
+    <path
+        android:strokeColor="#FFD700"
         android:strokeWidth="2"
-        android:pathData="M 54,54 m -15,0 a 15,15 0 1,0 30,0 a 15,15 0 1,0 -30,0"/>
+        android:fillColor="#00000000"
+        android:pathData="M 54,24 m -26,0 a 26,26 0 1,0 52,0 a 26,26 0 1,0 -52,0"/>
 </vector>

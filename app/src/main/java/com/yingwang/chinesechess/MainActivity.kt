@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.yingwang.chinesechess.GameController.AIDifficulty
 import com.yingwang.chinesechess.audio.GameAudioManager
 import com.yingwang.chinesechess.model.PieceColor
 import com.yingwang.chinesechess.ui.BoardView
@@ -39,7 +40,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         audioManager = GameAudioManager(this)
-        gameController = GameController(GameController.AIDifficulty.PROFESSIONAL)
+        gameController = GameController(AIDifficulty.PROFESSIONAL)
         initViews()
         setupGameController()
         gameController.startNewGame()
@@ -367,12 +368,12 @@ class MainActivity : AppCompatActivity() {
             .setTitle("选择AI难度")
             .setItems(difficulties) { _, which ->
                 val difficulty = when (which) {
-                    0 -> GameController.AIDifficulty.BEGINNER
-                    1 -> GameController.AIDifficulty.INTERMEDIATE
-                    2 -> GameController.AIDifficulty.ADVANCED
-                    3 -> GameController.AIDifficulty.PROFESSIONAL
-                    4 -> GameController.AIDifficulty.MASTER
-                    else -> GameController.AIDifficulty.PROFESSIONAL
+                    0 -> AIDifficulty.BEGINNER
+                    1 -> AIDifficulty.INTERMEDIATE
+                    2 -> AIDifficulty.ADVANCED
+                    3 -> AIDifficulty.PROFESSIONAL
+                    4 -> AIDifficulty.MASTER
+                    else -> AIDifficulty.PROFESSIONAL
                 }
 
                 // Recreate game controller with new difficulty
