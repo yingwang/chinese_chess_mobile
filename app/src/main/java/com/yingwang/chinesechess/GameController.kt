@@ -10,8 +10,9 @@ import kotlinx.coroutines.*
  */
 class GameController(
     private val context: Context,
-    private val aiDifficulty: AIDifficulty = AIDifficulty.PROFESSIONAL
+    aiDifficulty: AIDifficulty = AIDifficulty.PROFESSIONAL
 ) {
+    private val difficulty: AIDifficulty = aiDifficulty
     private val soundManager = SoundManager(context)
     enum class AIDifficulty(val depth: Int, val timeLimit: Long, val quiescenceDepth: Int) {
         BEGINNER(1, 500, 0),  // No quiescence search for fastest response
@@ -31,9 +32,9 @@ class GameController(
     private var gameMode = GameMode.PLAYER_VS_AI
     private var aiColor = PieceColor.BLACK
     private val ai: ChessAI = ChessAI(
-        maxDepth = aiDifficulty.depth,
-        timeLimit = aiDifficulty.timeLimit,
-        quiescenceDepth = aiDifficulty.quiescenceDepth
+        maxDepth = difficulty.depth,
+        timeLimit = difficulty.timeLimit,
+        quiescenceDepth = difficulty.quiescenceDepth
     )
 
     private var moveHistory = mutableListOf<Move>()
@@ -241,7 +242,7 @@ class GameController(
     }
 
     fun getAIStats(): String {
-        return "Cache size: ${ai.getCacheSize()}, Difficulty: $aiDifficulty"
+        return "Cache size: ${ai.getCacheSize()}, Difficulty: $difficulty"
     }
 
     fun getGameMode(): GameMode = gameMode
