@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="500" viewBox="0 0 1024 500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradient for background -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3A4A4A;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#453E2F;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2D3838;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Radial gradient for glow -->
+    <radialGradient id="glowGradient" cx="50%" cy="50%">
+      <stop offset="0%" style="stop-color:#D4C5B0;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#D4C5B0;stop-opacity:0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="1024" height="500" fill="url(#bgGradient)"/>
+
+  <!-- Subtle texture overlay -->
+  <rect x="0" y="0" width="1024" height="500" fill="#252520" opacity="0.1"/>
+
+  <!-- Glow effect behind chess piece -->
+  <ellipse cx="280" cy="250" rx="300" ry="280" fill="url(#glowGradient)"/>
+
+  <!-- Traditional corner decorations - left side -->
+  <g stroke="#8B6914" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.4">
+    <path d="M 30,30 L 60,30 M 30,30 L 30,60"/>
+    <path d="M 30,470 L 60,470 M 30,470 L 30,440"/>
+  </g>
+
+  <!-- Traditional corner decorations - right side -->
+  <g stroke="#8B6914" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.4">
+    <path d="M 964,30 L 994,30 M 994,30 L 994,60"/>
+    <path d="M 964,470 L 994,470 M 994,470 L 994,440"/>
+  </g>
+
+  <!-- Decorative board lines (subtle) -->
+  <g stroke="#6B5D1F" stroke-width="1" opacity="0.15">
+    <line x1="100" y1="150" x2="924" y2="150"/>
+    <line x1="100" y1="250" x2="924" y2="250"/>
+    <line x1="100" y1="350" x2="924" y2="350"/>
+  </g>
+
+  <!-- Chess Piece (larger, positioned left) -->
+  <g transform="translate(130, 100)">
+    <!-- Chess piece shadow -->
+    <circle cx="150" cy="155" r="90" fill="#000000" opacity="0.25"/>
+
+    <!-- Outer ring - aged bronze -->
+    <circle cx="150" cy="150" r="90" fill="#6B5D1F"/>
+
+    <!-- Inner circle - ivory/bone color base -->
+    <circle cx="150" cy="150" r="81" fill="#F5F5DC"/>
+
+    <!-- Subtle gradient overlay - cream -->
+    <circle cx="150" cy="132" r="72" fill="#FFFEF0"/>
+
+    <!-- Light wash for depth -->
+    <circle cx="150" cy="138" r="66" fill="#FFF8F0"/>
+
+    <!-- "象" character - scaled up -->
+    <g transform="translate(60, 60)">
+      <!-- Top horizontal stroke -->
+      <rect x="30" y="30" width="120" height="8" fill="#8B4513"/>
+
+      <!-- Left pie stroke -->
+      <polygon points="48,38 56,38 40,62 32,62" fill="#8B4513"/>
+
+      <!-- Right pie stroke -->
+      <polygon points="144,38 152,38 168,62 160,62" fill="#8B4513"/>
+
+      <!-- Middle horizontal stroke -->
+      <rect x="32" y="70" width="136" height="8" fill="#8B4513"/>
+
+      <!-- Left vertical -->
+      <rect x="40" y="70" width="8" height="72" fill="#8B4513"/>
+
+      <!-- Right vertical -->
+      <rect x="152" y="70" width="8" height="72" fill="#8B4513"/>
+
+      <!-- Middle section -->
+      <rect x="68" y="86" width="64" height="7" fill="#8B4513"/>
+      <rect x="80" y="93" width="8" height="24" fill="#8B4513"/>
+      <rect x="112" y="93" width="8" height="24" fill="#8B4513"/>
+
+      <!-- Bottom stroke -->
+      <rect x="40" y="134" width="120" height="8" fill="#8B4513"/>
+    </g>
+
+    <!-- Decorative bronze ring -->
+    <circle cx="150" cy="150" r="81" stroke="#6B5D1F" stroke-width="4" fill="none"/>
+
+    <!-- Subtle inner ring accent -->
+    <circle cx="150" cy="150" r="72" stroke="#C9A976" stroke-width="2" fill="none" opacity="0.3"/>
+  </g>
+
+  <!-- Title Text - Chinese Chess -->
+  <g transform="translate(500, 180)">
+    <!-- Chinese characters 象棋 (Xiangqi/Chinese Chess) -->
+    <text x="0" y="0" font-family="serif" font-size="120" font-weight="bold" fill="#F5F5DC" opacity="0.95">
+      象棋
+    </text>
+
+    <!-- English subtitle -->
+    <text x="0" y="80" font-family="sans-serif" font-size="42" font-weight="300" fill="#D4C5B0" opacity="0.8" letter-spacing="3">
+      CHINESE CHESS
+    </text>
+  </g>
+
+  <!-- Decorative elements - right side -->
+  <g opacity="0.2">
+    <!-- Small chess piece silhouette -->
+    <circle cx="880" cy="250" r="45" stroke="#C9A976" stroke-width="2" fill="none"/>
+    <circle cx="880" cy="250" r="38" fill="#F5F5DC" opacity="0.3"/>
+  </g>
+
+  <!-- Bottom decorative line -->
+  <rect x="100" y="420" width="824" height="2" fill="#8B6914" opacity="0.3"/>
+  <rect x="100" y="425" width="824" height="1" fill="#C9A976" opacity="0.2"/>
+</svg>
