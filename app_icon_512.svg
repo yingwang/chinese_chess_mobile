@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 108 108" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <!-- Base layer - deep slate gray (stone blue) -->
+  <rect x="0" y="0" width="108" height="108" fill="#3A4A4A"/>
+
+  <!-- Middle layer - warm dark olive -->
+  <rect x="0" y="20" width="108" height="88" fill="#453E2F" opacity="0.25"/>
+
+  <!-- Bottom darker layer for depth -->
+  <rect x="0" y="70" width="108" height="38" fill="#252520" opacity="0.2"/>
+
+  <!-- Subtle center radial highlight - soft beige glow -->
+  <circle cx="54" cy="54" r="45" fill="#D4C5B0" opacity="0.1"/>
+
+  <!-- Traditional corner decorations - bronze tone -->
+  <!-- Top-left -->
+  <g stroke="#8B6914" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.4">
+    <path d="M 12,12 L 22,12 M 12,12 L 12,22"/>
+    <!-- Top-right -->
+    <path d="M 86,12 L 96,12 M 96,12 L 96,22"/>
+    <!-- Bottom-left -->
+    <path d="M 12,86 L 22,86 M 12,86 L 12,96"/>
+    <!-- Bottom-right -->
+    <path d="M 86,96 L 96,96 M 96,86 L 96,96"/>
+  </g>
+
+  <!-- Subtle frame -->
+  <rect x="25" y="25" width="58" height="58" stroke="#6B5D1F" stroke-width="0.8" fill="none" opacity="0.2"/>
+
+  <!-- Foreground - Chess Piece -->
+  <!-- Chess piece shadow -->
+  <circle cx="54" cy="56" r="29" fill="#000000" opacity="0.25"/>
+
+  <!-- Outer ring - aged bronze -->
+  <circle cx="54" cy="54" r="30" fill="#6B5D1F"/>
+
+  <!-- Inner circle - ivory/bone color base -->
+  <circle cx="54" cy="54" r="27" fill="#F5F5DC"/>
+
+  <!-- Subtle gradient overlay - cream -->
+  <circle cx="54" cy="48" r="24" fill="#FFFEF0"/>
+
+  <!-- Light wash for depth -->
+  <circle cx="54" cy="50" r="22" fill="#FFF8F0"/>
+
+  <!-- Simplified "象" character (Elephant/Piece) -->
+  <!-- Using ink/vermillion tone - subdued red-brown -->
+
+  <!-- Top horizontal stroke -->
+  <rect x="38" y="40" width="32" height="2.5" fill="#8B4513"/>
+
+  <!-- Left撇 (pie - downward left stroke) -->
+  <polygon points="44,42 46,42 42,48 40,48" fill="#8B4513"/>
+
+  <!-- Right撇 (pie - downward right stroke) -->
+  <polygon points="62,42 64,42 68,48 66,48" fill="#8B4513"/>
+
+  <!-- Middle horizontal stroke -->
+  <rect x="40" y="50" width="28" height="2.5" fill="#8B4513"/>
+
+  <!-- Left vertical -->
+  <rect x="42" y="50" width="2.5" height="16" fill="#8B4513"/>
+
+  <!-- Right vertical -->
+  <rect x="63.5" y="50" width="2.5" height="16" fill="#8B4513"/>
+
+  <!-- Middle section - simplified "豕" radical -->
+  <rect x="47" y="55" width="14" height="2" fill="#8B4513"/>
+  <rect x="50" y="57" width="2" height="5" fill="#8B4513"/>
+  <rect x="56" y="57" width="2" height="5" fill="#8B4513"/>
+
+  <!-- Bottom stroke -->
+  <rect x="42" y="64" width="24" height="2.5" fill="#8B4513"/>
+
+  <!-- Decorative bronze ring -->
+  <circle cx="54" cy="54" r="27" stroke="#6B5D1F" stroke-width="2" fill="none"/>
+
+  <!-- Subtle inner ring accent -->
+  <circle cx="54" cy="54" r="24" stroke="#C9A976" stroke-width="1" fill="none" opacity="0.3"/>
+</svg>
