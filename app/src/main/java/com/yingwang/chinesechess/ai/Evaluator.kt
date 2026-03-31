@@ -3,13 +3,14 @@ package com.yingwang.chinesechess.ai
 import com.yingwang.chinesechess.model.*
 
 /**
- * Professional-level evaluation function for Chinese chess
- * Uses piece-square tables and positional analysis
+ * Enhanced evaluation function for Chinese chess.
+ * Adds king safety, piece coordination, threats, and
+ * removes expensive mobility calculation from leaf nodes.
  */
 object Evaluator {
 
-    // Piece-square tables for positional evaluation
-    // Values are from RED's perspective (higher row numbers = RED side)
+    // Piece-square tables — from BLACK's perspective (row 0 = black side)
+    // Mirrored for RED pieces
 
     private val GENERAL_TABLE = arrayOf(
         intArrayOf(0, 0, 0, 8, 9, 8, 0, 0, 0),
@@ -103,42 +104,44 @@ object Evaluator {
     )
 
     /**
-     * Evaluate the board from RED's perspective
-     * Positive scores favor RED, negative scores favor BLACK
+     * Evaluate the board from RED's perspective.
+     * Positive = RED advantage, negative = BLACK advantage.
      */
     fun evaluate(board: Board): Int {
+        if (board.isCheckmate()) {
+            return if (board.currentPlayer == PieceColor.RED) -90000 else 90000
+        }
+        if (board.isStalemate()) return 0
+
         var score = 0
 
+        // Material + positional (piece-square tables)
         for (piece in board.getAllPieces()) {
-            val pieceValue = getPieceValue(piece)
-            score += if (piece.color == PieceColor.RED) pieceValue else -pieceValue
+            val value = getPieceValue(piece)
+            score += if (piece.color == PieceColor.RED) value else -value
         }
 
-        // Add mobility bonus
-        score += evaluateMobility(board)
+        // King safety
+        score += evaluateKingSafety(board)
 
-        // Add control of center
-        score += evaluateCenterControl(board)
+        // Piece coordination and threats
+        score += evaluateThreats(board)
 
-        // Check if in checkmate or check
-        if (board.isCheckmate()) {
-            return if (board.currentPlayer == PieceColor.RED) Int.MIN_VALUE + 1 else Int.MAX_VALUE - 1
-        }
+        // Chariot on open file bonus
+        score += evaluateChariotActivity(board)
 
-        if (board.isInCheck(PieceColor.RED)) {
-            score -= 50
-        }
-        if (board.isInCheck(PieceColor.BLACK)) {
-            score += 50
-        }
+        // Connected horses bonus
+        score += evaluateHorseCoordination(board)
+
+        // Check bonus (tempo advantage)
+        if (board.isInCheck(PieceColor.RED)) score -= 30
+        if (board.isInCheck(PieceColor.BLACK)) score += 30
 
         return score
     }
 
     private fun getPieceValue(piece: Piece): Int {
-        val baseValue = piece.type.baseValue
-        val positionalValue = getPositionalValue(piece)
-        return baseValue + positionalValue
+        return piece.type.baseValue + getPositionalValue(piece)
     }
 
     private fun getPositionalValue(piece: Piece): Int {
@@ -151,43 +154,144 @@ object Evaluator {
             PieceType.CANNON -> CANNON_TABLE
             PieceType.SOLDIER -> SOLDIER_TABLE
         }
-
-        val row = if (piece.color == PieceColor.RED) {
-            piece.position.row
-        } else {
-            9 - piece.position.row // Mirror for BLACK
-        }
-
+        val row = if (piece.color == PieceColor.RED) piece.position.row else 9 - piece.position.row
         return table[row][piece.position.col]
     }
 
-    private fun evaluateMobility(board: Board): Int {
-        var redMobility = 0
-        var blackMobility = 0
+    /**
+     * King safety: penalize exposed king (missing advisors/elephants)
+     */
+    private fun evaluateKingSafety(board: Board): Int {
+        var score = 0
 
-        for (piece in board.getPiecesByColor(PieceColor.RED)) {
-            redMobility += piece.getLegalMoves(board).size
+        for (color in listOf(PieceColor.RED, PieceColor.BLACK)) {
+            val pieces = board.getPiecesByColor(color)
+            val advisorCount = pieces.count { it.type == PieceType.ADVISOR }
+            val elephantCount = pieces.count { it.type == PieceType.ELEPHANT }
+
+            // Penalize missing defenders
+            var safety = 0
+            if (advisorCount == 0) safety -= 40
+            else if (advisorCount == 1) safety -= 15
+            if (elephantCount == 0) safety -= 25
+            else if (elephantCount == 1) safety -= 10
+
+            // Bonus for general staying in center of palace
+            val general = pieces.find { it.type == PieceType.GENERAL }
+            if (general != null) {
+                val col = general.position.col
+                if (col == 4) safety += 10 // center column is safest
+            }
+
+            score += if (color == PieceColor.RED) safety else -safety
         }
 
-        for (piece in board.getPiecesByColor(PieceColor.BLACK)) {
-            blackMobility += piece.getLegalMoves(board).size
-        }
-
-        return (redMobility - blackMobility) * 2
+        return score
     }
 
-    private fun evaluateCenterControl(board: Board): Int {
+    /**
+     * Evaluate threats: pieces attacking opponent's territory get bonus
+     */
+    private fun evaluateThreats(board: Board): Int {
         var score = 0
-        val centerCols = 3..5
 
         for (piece in board.getAllPieces()) {
-            if (piece.position.col in centerCols) {
-                val bonus = when (piece.type) {
-                    PieceType.HORSE, PieceType.CHARIOT, PieceType.CANNON -> 5
-                    PieceType.SOLDIER -> 3
-                    else -> 0
+            val row = piece.position.row
+            val isRed = piece.color == PieceColor.RED
+
+            when (piece.type) {
+                PieceType.SOLDIER -> {
+                    // Crossed-river soldier is much more valuable
+                    val crossed = if (isRed) row <= 4 else row >= 5
+                    if (crossed) {
+                        val bonus = 20
+                        score += if (isRed) bonus else -bonus
+                        // Center crossed soldier even more valuable
+                        if (piece.position.col in 3..5) {
+                            score += if (isRed) 15 else -15
+                        }
+                    }
                 }
-                score += if (piece.color == PieceColor.RED) bonus else -bonus
+                PieceType.HORSE -> {
+                    // Horse in opponent's territory
+                    val inEnemyTerritory = if (isRed) row <= 4 else row >= 5
+                    if (inEnemyTerritory) {
+                        score += if (isRed) 15 else -15
+                    }
+                    // Horse near opponent's general (卧槽马)
+                    val nearGeneral = if (isRed) row <= 2 else row >= 7
+                    if (nearGeneral && piece.position.col in 2..6) {
+                        score += if (isRed) 25 else -25
+                    }
+                }
+                PieceType.CHARIOT -> {
+                    // Chariot penetration into opponent's base rows
+                    val deepPenetration = if (isRed) row <= 2 else row >= 7
+                    if (deepPenetration) {
+                        score += if (isRed) 20 else -20
+                    }
+                }
+                PieceType.CANNON -> {
+                    // Cannon value decreases in endgame (fewer pieces to jump over)
+                    val totalPieces = board.getAllPieces().size
+                    if (totalPieces <= 10) {
+                        score += if (isRed) -30 else 30 // cannon less useful
+                    }
+                }
+                else -> {}
+            }
+        }
+
+        return score
+    }
+
+    /**
+     * Chariot on open file (no own pawns blocking) gets bonus
+     */
+    private fun evaluateChariotActivity(board: Board): Int {
+        var score = 0
+
+        for (piece in board.getAllPieces()) {
+            if (piece.type != PieceType.CHARIOT) continue
+
+            val col = piece.position.col
+            val isRed = piece.color == PieceColor.RED
+
+            // Count own soldiers on same column
+            val ownSoldiersOnFile = board.getPiecesByColor(piece.color).count {
+                it.type == PieceType.SOLDIER && it.position.col == col
+            }
+
+            if (ownSoldiersOnFile == 0) {
+                score += if (isRed) 15 else -15 // open file bonus
+            }
+
+            // Bottom rank chariot (haven't moved) penalty
+            val onHomeRank = if (isRed) piece.position.row == 9 else piece.position.row == 0
+            if (onHomeRank) {
+                score += if (isRed) -20 else 20 // penalty for undeveloped chariot
+            }
+        }
+
+        return score
+    }
+
+    /**
+     * Connected/protected horses get bonus
+     */
+    private fun evaluateHorseCoordination(board: Board): Int {
+        var score = 0
+
+        for (color in listOf(PieceColor.RED, PieceColor.BLACK)) {
+            val horses = board.getPiecesByColor(color).filter { it.type == PieceType.HORSE }
+            if (horses.size == 2) {
+                val h1 = horses[0].position
+                val h2 = horses[1].position
+                val dist = Math.abs(h1.row - h2.row) + Math.abs(h1.col - h2.col)
+                // Connected horses (close together) can support each other
+                if (dist in 2..4) {
+                    score += if (color == PieceColor.RED) 10 else -10
+                }
             }
         }
 

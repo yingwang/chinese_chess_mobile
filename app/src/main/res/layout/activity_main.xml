@@ -96,10 +96,11 @@
         </LinearLayout>
     </LinearLayout>
 
+    <!-- Status with turn indicator dot -->
     <LinearLayout
         android:id="@+id/statusContainer"
         android:layout_width="0dp"
-        android:layout_height="80dp"
+        android:layout_height="70dp"
         android:layout_marginStart="16dp"
         android:layout_marginTop="8dp"
         android:layout_marginEnd="16dp"
@@ -109,41 +110,120 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/gameInfoPanel">
 
-        <TextView
-            android:id="@+id/statusText"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="红方走棋"
-            android:textSize="26sp"
-            android:textStyle="bold"
-            android:textColor="#5D4E37"
-            android:fontFamily="serif"
-            android:shadowColor="#80000000"
-            android:shadowDx="1"
-            android:shadowDy="1"
-            android:shadowRadius="2" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-        <ProgressBar
+            <View
+                android:id="@+id/turnIndicatorDot"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/turn_indicator_dot" />
+
+            <TextView
+                android:id="@+id/statusText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="红方走棋"
+                android:textSize="26sp"
+                android:textStyle="bold"
+                android:textColor="#5D4E37"
+                android:fontFamily="serif"
+                android:shadowColor="#80000000"
+                android:shadowDx="1"
+                android:shadowDy="1"
+                android:shadowRadius="2" />
+        </LinearLayout>
+
+        <!-- AI thinking dots -->
+        <LinearLayout
             android:id="@+id/aiThinkingIndicator"
-            style="?android:attr/progressBarStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:visibility="gone" />
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:visibility="gone">
+
+            <View
+                android:id="@+id/thinkingDot1"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:layout_margin="3dp"
+                android:background="@drawable/thinking_dot" />
+
+            <View
+                android:id="@+id/thinkingDot2"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:layout_margin="3dp"
+                android:background="@drawable/thinking_dot" />
+
+            <View
+                android:id="@+id/thinkingDot3"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:layout_margin="3dp"
+                android:background="@drawable/thinking_dot" />
+        </LinearLayout>
     </LinearLayout>
+
+    <!-- Black captured pieces (pieces captured by Red, shown above board) -->
+    <HorizontalScrollView
+        android:id="@+id/blackCapturedContainer"
+        android:layout_width="0dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="4dp"
+        android:scrollbars="none"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/statusContainer">
+
+        <LinearLayout
+            android:id="@+id/blackCapturedPieces"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center_vertical" />
+    </HorizontalScrollView>
 
     <com.yingwang.chinesechess.ui.BoardView
         android:id="@+id/boardView"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_margin="16dp"
-        app:layout_constraintBottom_toTopOf="@+id/moveHistoryContainer"
+        app:layout_constraintBottom_toTopOf="@+id/redCapturedContainer"
         app:layout_constraintDimensionRatio="0.9:1"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/statusContainer"
+        app:layout_constraintTop_toBottomOf="@+id/blackCapturedContainer"
         app:layout_constraintVertical_bias="0.0" />
+
+    <!-- Red captured pieces (pieces captured by Black, shown below board) -->
+    <HorizontalScrollView
+        android:id="@+id/redCapturedContainer"
+        android:layout_width="0dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:scrollbars="none"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/moveHistoryContainer">
+
+        <LinearLayout
+            android:id="@+id/redCapturedPieces"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center_vertical" />
+    </HorizontalScrollView>
 
     <ScrollView
         android:id="@+id/moveHistoryContainer"
@@ -184,9 +264,24 @@
             android:id="@+id/newGameButton"
             android:layout_width="0dp"
             android:layout_height="56dp"
-            android:layout_marginEnd="12dp"
+            android:layout_marginEnd="8dp"
             android:layout_weight="1"
             android:text="新游戏"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:fontFamily="serif"
+            android:background="@drawable/button_selector"
+            android:elevation="4dp" />
+
+        <Button
+            android:id="@+id/hintButton"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:text="提示"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="#FFFFFF"
@@ -198,7 +293,7 @@
             android:id="@+id/undoButton"
             android:layout_width="0dp"
             android:layout_height="56dp"
-            android:layout_marginStart="12dp"
+            android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:text="悔棋"
             android:textSize="18sp"

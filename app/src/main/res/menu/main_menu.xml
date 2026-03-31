@@ -10,6 +10,14 @@
         android:title="悔棋"
         app:showAsAction="never" />
     <item
+        android:id="@+id/action_endgame"
+        android:title="残局练习"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_replay"
+        android:title="棋谱回放"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_about"
         android:title="关于"
         app:showAsAction="never" />

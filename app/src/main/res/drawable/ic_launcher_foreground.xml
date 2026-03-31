@@ -5,93 +5,104 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Chess piece shadow -->
+    <!-- Drop shadow — soft, offset down-right -->
     <path
-        android:fillColor="#25000000"
-        android:pathData="M 54,56 m -29,0 a 29,29 0 1,0 58,0 a 29,29 0 1,0 -58,0"/>
+        android:fillColor="#35000000"
+        android:pathData="M 55,57 m -32,0 a 32,32 0 1,0 64,0 a 32,32 0 1,0 -64,0"/>
 
-    <!-- Outer ring - aged bronze -->
+    <!-- Piece edge (thickness illusion) -->
     <path
-        android:fillColor="#6B5D1F"
-        android:pathData="M 54,54 m -30,0 a 30,30 0 1,0 60,0 a 30,30 0 1,0 -60,0"/>
+        android:fillColor="#9A7A50"
+        android:pathData="M 54,55.5 m -31,0 a 31,31 0 1,0 62,0 a 31,31 0 1,0 -62,0"/>
 
-    <!-- Inner circle - ivory/bone color base -->
+    <!-- Piece body — warm beige base -->
     <path
-        android:fillColor="#F5F5DC"
-        android:pathData="M 54,54 m -27,0 a 27,27 0 1,0 54,0 a 27,27 0 1,0 -54,0"/>
+        android:fillColor="#E0CCAA"
+        android:pathData="M 54,53 m -30,0 a 30,30 0 1,0 60,0 a 30,30 0 1,0 -60,0"/>
 
-    <!-- Subtle gradient overlay - cream -->
+    <!-- Highlight layer — lighter center for convex effect -->
     <path
-        android:fillColor="#FFFEF0"
-        android:pathData="M 54,48 m -24,0 a 24,24 0 1,0 48,0 a 24,24 0 1,0 -48,0"/>
+        android:fillColor="#F5EADA"
+        android:pathData="M 50,47 m -22,0 a 22,22 0 1,0 44,0 a 22,22 0 1,0 -44,0"/>
 
-    <!-- Light wash for depth -->
+    <!-- Top specular — bright cream -->
     <path
-        android:fillColor="#FFF8F0"
-        android:pathData="M 54,50 m -22,0 a 22,22 0 1,0 44,0 a 22,22 0 1,0 -44,0"/>
+        android:fillColor="#20FFFFFF"
+        android:pathData="M 47,40 m -15,0 a 15,11 0 1,0 30,0 a 15,11 0 1,0 -30,0"/>
 
-    <!-- Simplified "象" character (Elephant/Piece) -->
-    <!-- Using ink/vermillion tone - subdued red-brown -->
-
-    <!-- Top horizontal stroke -->
+    <!-- Outer ring — dark brown -->
     <path
-        android:fillColor="#8B4513"
-        android:pathData="M 38,40 L 70,40 L 70,42.5 L 38,42.5 Z"/>
-
-    <!-- Left撇 (pie - downward left stroke) -->
-    <path
-        android:fillColor="#8B4513"
-        android:pathData="M 44,42 L 46,42 L 42,48 L 40,48 Z"/>
-
-    <!-- Right撇 (pie - downward right stroke) -->
-    <path
-        android:fillColor="#8B4513"
-        android:pathData="M 62,42 L 64,42 L 68,48 L 66,48 Z"/>
-
-    <!-- Middle horizontal stroke -->
-    <path
-        android:fillColor="#8B4513"
-        android:pathData="M 40,50 L 68,50 L 68,52.5 L 40,52.5 Z"/>
-
-    <!-- Left vertical -->
-    <path
-        android:fillColor="#8B4513"
-        android:pathData="M 42,50 L 44.5,50 L 44.5,66 L 42,66 Z"/>
-
-    <!-- Right vertical -->
-    <path
-        android:fillColor="#8B4513"
-        android:pathData="M 63.5,50 L 66,50 L 66,66 L 63.5,66 Z"/>
-
-    <!-- Middle section - simplified "豕" radical -->
-    <path
-        android:fillColor="#8B4513"
-        android:pathData="M 47,55 L 61,55 L 61,57 L 47,57 Z"/>
-
-    <path
-        android:fillColor="#8B4513"
-        android:pathData="M 50,57 L 52,57 L 52,62 L 50,62 Z"/>
-
-    <path
-        android:fillColor="#8B4513"
-        android:pathData="M 56,57 L 58,57 L 58,62 L 56,62 Z"/>
-
-    <!-- Bottom stroke -->
-    <path
-        android:fillColor="#8B4513"
-        android:pathData="M 42,64 L 66,64 L 66,66.5 L 42,66.5 Z"/>
-
-    <!-- Decorative bronze ring -->
-    <path
-        android:strokeColor="#6B5D1F"
-        android:strokeWidth="2"
+        android:strokeColor="#6B4A28"
+        android:strokeWidth="2.8"
         android:fillColor="#00000000"
-        android:pathData="M 54,54 m -27,0 a 27,27 0 1,0 54,0 a 27,27 0 1,0 -54,0"/>
+        android:pathData="M 54,53 m -30,0 a 30,30 0 1,0 60,0 a 30,30 0 1,0 -60,0"/>
 
-    <!-- Subtle inner ring accent -->
+    <!-- Inner decorative ring -->
     <path
-        android:strokeColor="#30C9A976"
-        android:strokeWidth="1"
+        android:strokeColor="#406B4A28"
+        android:strokeWidth="1.2"
         android:fillColor="#00000000"
-        android:pathData="M 54,54 m -24,0 a 24,24 0 1,0 48,0 a 24,24 0 1,0 -48,0"/>
+        android:pathData="M 54,53 m -24,0 a 24,24 0 1,0 48,0 a 24,24 0 1,0 -48,0"/>
+
+    <!-- "帥" character in deep vermillion red -->
+    <!-- Using cleaner, bolder strokes -->
+
+    <!-- Top horizontal -->
+    <path
+        android:fillColor="#A01818"
+        android:pathData="M 40,38 L 68,38 L 68,41.5 L 40,41.5 Z"/>
+
+    <!-- Center vertical (through both parts) -->
+    <path
+        android:fillColor="#A01818"
+        android:pathData="M 52,38 L 56,38 L 56,68 L 52,68 Z"/>
+
+    <!-- Left vertical top half -->
+    <path
+        android:fillColor="#A01818"
+        android:pathData="M 40,38 L 44,38 L 44,53 L 40,53 Z"/>
+
+    <!-- Right vertical top half -->
+    <path
+        android:fillColor="#A01818"
+        android:pathData="M 64,38 L 68,38 L 68,53 L 64,53 Z"/>
+
+    <!-- Middle horizontal -->
+    <path
+        android:fillColor="#A01818"
+        android:pathData="M 40,50 L 68,50 L 68,53 L 40,53 Z"/>
+
+    <!-- Bottom horizontal -->
+    <path
+        android:fillColor="#A01818"
+        android:pathData="M 40,65 L 68,65 L 68,68 L 40,68 Z"/>
+
+    <!-- Left vertical bottom half -->
+    <path
+        android:fillColor="#A01818"
+        android:pathData="M 40,53 L 44,53 L 44,68 L 40,68 Z"/>
+
+    <!-- Right vertical bottom half -->
+    <path
+        android:fillColor="#A01818"
+        android:pathData="M 64,53 L 68,53 L 68,68 L 64,68 Z"/>
+
+    <!-- Short horizontal strokes inside (巾 radical detail) -->
+    <path
+        android:fillColor="#A01818"
+        android:pathData="M 44,44 L 52,44 L 52,47 L 44,47 Z"/>
+
+    <path
+        android:fillColor="#A01818"
+        android:pathData="M 56,44 L 64,44 L 64,47 L 56,47 Z"/>
+
+    <!-- Bottom section inner horizontals -->
+    <path
+        android:fillColor="#A01818"
+        android:pathData="M 44,57 L 52,57 L 52,60 L 44,60 Z"/>
+
+    <path
+        android:fillColor="#A01818"
+        android:pathData="M 56,57 L 64,57 L 64,60 L 56,60 Z"/>
+
 </vector>

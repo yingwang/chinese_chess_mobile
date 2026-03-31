@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chinese Chess / 中国象棋</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Georgia', 'STSong', serif;
+            background: #2a1a0a;
+            color: #e8d8c8;
+            min-height: 100vh;
+        }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 80px 20px 60px;
+            background: linear-gradient(180deg, #3a2010 0%, #2a1a0a 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                0deg, transparent, transparent 30px,
+                rgba(255,255,255,0.02) 30px, rgba(255,255,255,0.02) 31px
+            );
+        }
+
+        .hero h1 {
+            font-size: 3.5em;
+            color: #f0e0c0;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+            margin-bottom: 8px;
+            position: relative;
+        }
+
+        .hero .subtitle {
+            font-size: 1.3em;
+            color: #c0a880;
+            margin-bottom: 40px;
+            position: relative;
+        }
+
+        .hero .piece-icon {
+            display: inline-block;
+            width: 120px; height: 120px;
+            background: radial-gradient(circle at 35% 35%, #fff5e0, #e0ccaa 40%, #b09070);
+            border-radius: 50%;
+            border: 4px solid #6b4a28;
+            box-shadow: 4px 6px 20px rgba(0,0,0,0.5);
+            line-height: 120px;
+            font-size: 60px;
+            color: #a01818;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .hero .piece-icon::after {
+            content: '';
+            position: absolute;
+            top: 8px; left: 8px; right: 8px; bottom: 8px;
+            border-radius: 50%;
+            border: 2px solid rgba(107,74,40,0.3);
+        }
+
+        .badge-row {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        .badge-row a img {
+            height: 60px;
+        }
+
+        .badge-row a {
+            display: inline-flex;
+            align-items: center;
+            padding: 12px 28px;
+            background: linear-gradient(135deg, #8b6f47, #a0826d);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid #5d4e37;
+        }
+
+        .badge-row a:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        }
+
+        .badge-row a.playstore {
+            background: linear-gradient(135deg, #1a8c1a, #2aaa2a);
+            border-color: #146614;
+        }
+
+        /* Sections */
+        section {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 60px 24px;
+        }
+
+        section h2 {
+            font-size: 2em;
+            color: #d4a860;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #4a3020;
+        }
+
+        /* Feature grid */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-top: 20px;
+        }
+
+        .feature-card {
+            background: #3a2818;
+            border: 1px solid #5a4030;
+            border-radius: 12px;
+            padding: 24px;
+            transition: transform 0.2s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .feature-card h3 {
+            color: #e8c880;
+            font-size: 1.2em;
+            margin-bottom: 8px;
+        }
+
+        .feature-card p {
+            color: #b8a890;
+            line-height: 1.6;
+        }
+
+        .feature-card .icon {
+            font-size: 2em;
+            margin-bottom: 12px;
+        }
+
+        /* AI table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+
+        th, td {
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid #4a3020;
+        }
+
+        th {
+            color: #d4a860;
+            font-weight: bold;
+        }
+
+        td {
+            color: #c0b098;
+        }
+
+        /* Endgame list */
+        .endgame-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .endgame-item {
+            background: #3a2818;
+            border: 1px solid #5a4030;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .endgame-item strong {
+            color: #e8c880;
+        }
+
+        .endgame-item span {
+            color: #a09080;
+            font-size: 0.9em;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: #706050;
+            border-top: 1px solid #3a2818;
+        }
+
+        footer a {
+            color: #a08060;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Divider */
+        .divider {
+            text-align: center;
+            padding: 0 24px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .divider hr {
+            border: none;
+            border-top: 1px solid #3a2818;
+        }
+    </style>
+</head>
+<body>
+
+<div class="hero">
+    <div class="piece-icon">帥</div>
+    <h1>中国象棋</h1>
+    <p class="subtitle">Chinese Chess for Android</p>
+    <div class="badge-row">
+        <a href="https://play.google.com/store/apps/details?id=com.yingwang.chinesechess" class="playstore">
+            Google Play
+        </a>
+        <a href="https://github.com/yingwang/chinese_chess_mobile">
+            GitHub
+        </a>
+    </div>
+</div>
+
+<section>
+    <h2>Features</h2>
+    <div class="features">
+        <div class="feature-card">
+            <div class="icon">&#x265E;</div>
+            <h3>Strong AI Engine</h3>
+            <p>Alpha-beta search with null move pruning, late move reductions, Zobrist hashing, killer & history heuristics. 5 difficulty levels up to Master (depth 7).</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">&#x1F3AF;</div>
+            <h3>Endgame Puzzles</h3>
+            <p>8 classic endgame positions: Double Cannon, Iron Door Bolt, Heaven-Earth Cannons, Horse-Rear Cannon, and more.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">&#x1F4A1;</div>
+            <h3>Hint System</h3>
+            <p>Stuck on a move? Tap the hint button and the AI will suggest the best play for your position.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">&#x1F3A8;</div>
+            <h3>Classical Design</h3>
+            <p>Wood-grain board with 3D convex pieces, smooth animations, haptic feedback, and warm gold selection glow.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">&#x1F4BE;</div>
+            <h3>Save & Resume</h3>
+            <p>Games auto-save when you leave. Come back anytime and pick up right where you left off.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">&#x1F4D6;</div>
+            <h3>Game Replay</h3>
+            <p>Step through your game move by move. Review your strategy and learn from your decisions.</p>
+        </div>
+    </div>
+</section>
+
+<div class="divider"><hr></div>
+
+<section>
+    <h2>AI Difficulty Levels</h2>
+    <table>
+        <tr><th>Level</th><th>Search Depth</th><th>Time Limit</th><th>Strength</th></tr>
+        <tr><td>Beginner</td><td>2 plies</td><td>1s</td><td>Learning friendly</td></tr>
+        <tr><td>Intermediate</td><td>3 plies</td><td>2s</td><td>Casual play</td></tr>
+        <tr><td>Advanced</td><td>4 plies</td><td>3s</td><td>Challenging</td></tr>
+        <tr><td>Professional</td><td>5 plies</td><td>5s</td><td>Strong amateur</td></tr>
+        <tr><td>Master</td><td>7 plies</td><td>10s</td><td>Advanced player</td></tr>
+    </table>
+</section>
+
+<div class="divider"><hr></div>
+
+<section>
+    <h2>Endgame Puzzles</h2>
+    <p style="color:#a09080; margin-bottom:12px;">Classic Chinese chess endgame positions to practice tactical skills.</p>
+    <div class="endgame-grid">
+        <div class="endgame-item"><strong>重炮杀</strong><br><span>Double Cannon Checkmate</span></div>
+        <div class="endgame-item"><strong>铁门栓</strong><br><span>Iron Door Bolt</span></div>
+        <div class="endgame-item"><strong>天地炮</strong><br><span>Heaven-Earth Cannons</span></div>
+        <div class="endgame-item"><strong>马后炮</strong><br><span>Horse-Rear Cannon</span></div>
+        <div class="endgame-item"><strong>双车错</strong><br><span>Double Chariot Interlock</span></div>
+        <div class="endgame-item"><strong>车马冷着</strong><br><span>Chariot-Horse Cold Move</span></div>
+        <div class="endgame-item"><strong>大胆穿心</strong><br><span>Bold Heart Pierce</span></div>
+        <div class="endgame-item"><strong>卧槽马</strong><br><span>Crouching Horse</span></div>
+    </div>
+</section>
+
+<div class="divider"><hr></div>
+
+<section>
+    <h2>AI Techniques</h2>
+    <table>
+        <tr><th>Search</th><th>Evaluation</th></tr>
+        <tr><td>Alpha-Beta Pruning</td><td>Piece-Square Tables</td></tr>
+        <tr><td>Null Move Pruning</td><td>King Safety Analysis</td></tr>
+        <tr><td>Late Move Reductions</td><td>Piece Coordination</td></tr>
+        <tr><td>Aspiration Windows</td><td>Threat Detection</td></tr>
+        <tr><td>Iterative Deepening</td><td>Chariot Activity</td></tr>
+        <tr><td>Zobrist Hashing</td><td>Cannon Endgame Adjustment</td></tr>
+        <tr><td>Transposition Table</td><td>Crossed-River Bonuses</td></tr>
+        <tr><td>Killer & History Heuristics</td><td>Center Control</td></tr>
+        <tr><td>Quiescence Search</td><td>Check Bonus</td></tr>
+        <tr><td>MVV-LVA Move Ordering</td><td>30+ Opening Book Lines</td></tr>
+    </table>
+</section>
+
+<div class="divider"><hr></div>
+
+<section>
+    <h2>Privacy</h2>
+    <p>This app does not collect any personal data. No internet connection required. No tracking, analytics, or advertisements. All game data is stored locally on your device.</p>
+</section>
+
+<footer>
+    <p>
+        <a href="https://github.com/yingwang/chinese_chess_mobile">GitHub</a> &middot;
+        <a href="https://play.google.com/store/apps/details?id=com.yingwang.chinesechess">Google Play</a> &middot;
+        <a href="https://github.com/yingwang/chinese_chess_mobile/blob/main/PRIVACY_POLICY.md">Privacy Policy</a>
+    </p>
+    <p style="margin-top:12px;">&copy; 2025 Ying Wang</p>
+</footer>
+
+</body>
+</html>

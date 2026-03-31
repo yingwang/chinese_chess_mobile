@@ -4,86 +4,111 @@ import com.yingwang.chinesechess.model.*
 import kotlinx.coroutines.*
 
 /**
- * Professional-level Chinese Chess AI using:
- * - Alpha-beta pruning
+ * Enhanced Chinese Chess AI using:
+ * - Alpha-beta pruning with aspiration windows
  * - Iterative deepening
- * - Transposition tables
- * - Move ordering
+ * - Transposition tables with Zobrist hashing
+ * - Null move pruning
+ * - Late move reductions (LMR)
+ * - Killer move heuristic
+ * - History heuristic
+ * - MVV-LVA move ordering
  * - Quiescence search
+ * - Opening book
  */
 class ChessAI(
     private val maxDepth: Int = 6,
-    private val timeLimit: Long = 5000, // milliseconds
-    private val quiescenceDepth: Int = 3 // depth for quiescence search
+    private val timeLimit: Long = 5000,
+    private val quiescenceDepth: Int = 3
 ) {
     private val transpositionTable = TranspositionTable()
     private var nodesSearched = 0
     private var startTime = 0L
     private var shouldStop = false
 
+    // Killer moves: 2 per depth level
+    private val killerMoves = Array(30) { arrayOfNulls<Move>(2) }
+
+    // History heuristic: [color][fromRow*9+fromCol][toRow*9+toCol]
+    private val historyTable = Array(2) { Array(90) { IntArray(90) } }
+
     companion object {
         private const val INFINITY = 1_000_000
         private const val CHECKMATE_SCORE = 100_000
+        private const val NULL_MOVE_REDUCTION = 2
+        private const val LMR_THRESHOLD = 4 // reduce after this many moves
+        private const val ASPIRATION_WINDOW = 50
     }
 
-    /**
-     * Find the best move for the current player
-     */
     suspend fun findBestMove(board: Board, moveHistory: List<Move> = emptyList()): Move? = withContext(Dispatchers.Default) {
         nodesSearched = 0
         startTime = System.currentTimeMillis()
         shouldStop = false
+        for (i in killerMoves.indices) killerMoves[i].fill(null)
+        // Decay history table instead of clearing (preserves knowledge)
+        for (c in historyTable.indices) for (f in historyTable[c].indices) for (t in historyTable[c][f].indices) {
+            historyTable[c][f][t] = historyTable[c][f][t] / 2
+        }
 
-        // Check opening book first for quick responses
+        // Opening book
         if (moveHistory.size < 6) {
             val openingMove = OpeningBook.getOpeningMove(moveHistory)
             if (openingMove != null) {
                 val legalMoves = board.getAllLegalMoves()
                 val matchedMove = OpeningBook.matchOpeningMove(openingMove, legalMoves)
-                if (matchedMove != null) {
-                    println("AI selected opening book move: $matchedMove")
-                    return@withContext matchedMove
-                }
+                if (matchedMove != null) return@withContext matchedMove
             }
         }
 
         var bestMove: Move? = null
-        var bestScore = Int.MIN_VALUE
+        var bestScore = 0
 
-        // Iterative deepening
+        // Iterative deepening with aspiration windows
         for (depth in 1..maxDepth) {
             if (shouldStop) break
 
-            val result = searchWithTimeout(board, depth)
-            if (result != null) {
+            val result = if (depth >= 4 && bestMove != null) {
+                // Aspiration window search
+                var alpha = bestScore - ASPIRATION_WINDOW
+                var beta = bestScore + ASPIRATION_WINDOW
+                var res = searchRoot(board, depth, alpha, beta)
+
+                // Re-search with full window if failed
+                if (res != null && (res.second <= alpha || res.second >= beta)) {
+                    res = searchRoot(board, depth, -INFINITY, INFINITY)
+                }
+                res
+            } else {
+                searchRoot(board, depth, -INFINITY, INFINITY)
+            }
+
+            if (result != null && !shouldStop) {
                 bestMove = result.first
                 bestScore = result.second
 
-                // Log search statistics
                 val elapsed = System.currentTimeMillis() - startTime
-                println("Depth $depth: score=$bestScore, nodes=$nodesSearched, time=${elapsed}ms, move=$bestMove")
+                println("Depth $depth: score=$bestScore, nodes=$nodesSearched, time=${elapsed}ms")
 
-                // If we found a checkmate, no need to search deeper
-                if (Math.abs(bestScore) > CHECKMATE_SCORE - 100) {
-                    break
-                }
+                if (Math.abs(bestScore) > CHECKMATE_SCORE - 100) break
             }
 
-            // Check time limit
             if (System.currentTimeMillis() - startTime > timeLimit) {
                 shouldStop = true
             }
         }
 
-        println("AI selected move: $bestMove with score $bestScore (searched $nodesSearched nodes)")
         bestMove
     }
 
-    private fun searchWithTimeout(board: Board, depth: Int): Pair<Move, Int>? {
+    private fun searchRoot(board: Board, depth: Int, alpha: Int, beta: Int): Pair<Move, Int>? {
         var bestMove: Move? = null
-        var bestScore = if (board.currentPlayer == PieceColor.RED) Int.MIN_VALUE else Int.MAX_VALUE
+        val isMaximizing = board.currentPlayer == PieceColor.RED
+        var bestScore = if (isMaximizing) Int.MIN_VALUE else Int.MAX_VALUE
+        var currentAlpha = alpha
+        var currentBeta = beta
 
-        val moves = orderMoves(board, board.getAllLegalMoves())
+        val ttEntry = transpositionTable.probe(board.getPositionHash())
+        val moves = orderMoves(board, board.getAllLegalMoves(), ttEntry?.bestMove, depth)
         if (moves.isEmpty()) return null
 
         for (move in moves) {
@@ -92,50 +117,44 @@ class ChessAI(
             val newBoard = board.makeMove(move)
             newBoard.currentPlayer = board.currentPlayer.opposite()
 
-            val score = if (board.currentPlayer == PieceColor.RED) {
-                alphaBeta(newBoard, depth - 1, Int.MIN_VALUE, Int.MAX_VALUE, false)
-            } else {
-                alphaBeta(newBoard, depth - 1, Int.MIN_VALUE, Int.MAX_VALUE, true)
-            }
+            val score = alphaBeta(newBoard, depth - 1, currentAlpha, currentBeta, !isMaximizing, true)
 
-            if (board.currentPlayer == PieceColor.RED) {
+            if (isMaximizing) {
                 if (score > bestScore) {
                     bestScore = score
                     bestMove = move
                 }
+                currentAlpha = maxOf(currentAlpha, score)
             } else {
                 if (score < bestScore) {
                     bestScore = score
                     bestMove = move
                 }
+                currentBeta = minOf(currentBeta, score)
             }
         }
 
         return if (bestMove != null) Pair(bestMove, bestScore) else null
     }
 
-    /**
-     * Alpha-beta search with transposition table
-     */
     private fun alphaBeta(
         board: Board,
         depth: Int,
         alpha: Int,
         beta: Int,
-        maximizing: Boolean
+        maximizing: Boolean,
+        allowNullMove: Boolean
     ): Int {
         nodesSearched++
 
-        // Check time limit every 1000 nodes
-        if (nodesSearched % 1000 == 0) {
+        if (nodesSearched % 2048 == 0) {
             if (System.currentTimeMillis() - startTime > timeLimit) {
                 shouldStop = true
             }
         }
-
         if (shouldStop) return 0
 
-        // Check transposition table
+        // Transposition table lookup
         val hash = board.getPositionHash()
         val ttEntry = transpositionTable.probe(hash)
         if (ttEntry != null && ttEntry.depth >= depth) {
@@ -150,42 +169,59 @@ class ChessAI(
             }
         }
 
-        // Terminal conditions
+        // Leaf node
         if (depth == 0) {
-            // Skip quiescence search if disabled (quiescenceDepth == 0)
-            if (quiescenceDepth == 0) {
-                return Evaluator.evaluate(board)
-            }
-            return quiescenceSearch(board, alpha, beta, maximizing, quiescenceDepth)
+            return if (quiescenceDepth == 0) Evaluator.evaluate(board)
+            else quiescenceSearch(board, alpha, beta, maximizing, quiescenceDepth)
         }
 
         if (board.isCheckmate()) {
-            return if (maximizing) -CHECKMATE_SCORE + (maxDepth - depth) else CHECKMATE_SCORE - (maxDepth - depth)
+            return if (maximizing) -CHECKMATE_SCORE + (maxDepth - depth)
+            else CHECKMATE_SCORE - (maxDepth - depth)
+        }
+        if (board.isStalemate()) return 0
+
+        // Null move pruning: skip our turn and see if opponent can still not beat beta
+        // Don't do null move when in check or at shallow depth
+        if (allowNullMove && depth >= 3 && !board.isInCheck(board.currentPlayer)) {
+            val nullBoard = board.copy()
+            nullBoard.currentPlayer = board.currentPlayer.opposite()
+            val nullScore = alphaBeta(nullBoard, depth - 1 - NULL_MOVE_REDUCTION, alpha, beta, !maximizing, false)
+
+            if (maximizing && nullScore >= beta) return beta
+            if (!maximizing && nullScore <= alpha) return alpha
         }
 
-        if (board.isStalemate()) {
-            return 0
-        }
-
-        val moves = orderMoves(board, board.getAllLegalMoves(), ttEntry?.bestMove)
-        if (moves.isEmpty()) {
-            return Evaluator.evaluate(board)
-        }
+        val moves = orderMoves(board, board.getAllLegalMoves(), ttEntry?.bestMove, depth)
+        if (moves.isEmpty()) return Evaluator.evaluate(board)
 
         var currentAlpha = alpha
         var currentBeta = beta
         var bestScore: Int
         var bestMove: Move? = null
+        val inCheck = board.isInCheck(board.currentPlayer)
 
         if (maximizing) {
             bestScore = Int.MIN_VALUE
-            for (move in moves) {
+            for ((moveIndex, move) in moves.withIndex()) {
                 if (shouldStop) break
 
                 val newBoard = board.makeMove(move)
                 newBoard.currentPlayer = board.currentPlayer.opposite()
 
-                val score = alphaBeta(newBoard, depth - 1, currentAlpha, currentBeta, false)
+                // Late move reduction: search late non-capture moves at reduced depth
+                var reduction = 0
+                if (moveIndex >= LMR_THRESHOLD && depth >= 3 &&
+                    !inCheck && move.capturedPiece == null) {
+                    reduction = 1
+                }
+
+                var score = alphaBeta(newBoard, depth - 1 - reduction, currentAlpha, currentBeta, false, true)
+
+                // Re-search at full depth if reduced search beats alpha
+                if (reduction > 0 && score > currentAlpha) {
+                    score = alphaBeta(newBoard, depth - 1, currentAlpha, currentBeta, false, true)
+                }
 
                 if (score > bestScore) {
                     bestScore = score
@@ -194,23 +230,34 @@ class ChessAI(
 
                 currentAlpha = maxOf(currentAlpha, score)
                 if (currentBeta <= currentAlpha) {
-                    // Beta cutoff
-                    transpositionTable.store(
-                        hash, depth, bestScore,
-                        TranspositionTable.EntryType.LOWER_BOUND, bestMove
-                    )
+                    // Beta cutoff — update killer and history
+                    if (move.capturedPiece == null) {
+                        updateKillerMoves(depth, move)
+                        updateHistory(move, depth)
+                    }
+                    transpositionTable.store(hash, depth, bestScore, TranspositionTable.EntryType.LOWER_BOUND, bestMove)
                     return bestScore
                 }
             }
         } else {
             bestScore = Int.MAX_VALUE
-            for (move in moves) {
+            for ((moveIndex, move) in moves.withIndex()) {
                 if (shouldStop) break
 
                 val newBoard = board.makeMove(move)
                 newBoard.currentPlayer = board.currentPlayer.opposite()
 
-                val score = alphaBeta(newBoard, depth - 1, currentAlpha, currentBeta, true)
+                var reduction = 0
+                if (moveIndex >= LMR_THRESHOLD && depth >= 3 &&
+                    !inCheck && move.capturedPiece == null) {
+                    reduction = 1
+                }
+
+                var score = alphaBeta(newBoard, depth - 1 - reduction, currentAlpha, currentBeta, true, true)
+
+                if (reduction > 0 && score < currentBeta) {
+                    score = alphaBeta(newBoard, depth - 1, currentAlpha, currentBeta, true, true)
+                }
 
                 if (score < bestScore) {
                     bestScore = score
@@ -219,41 +266,26 @@ class ChessAI(
 
                 currentBeta = minOf(currentBeta, score)
                 if (currentBeta <= currentAlpha) {
-                    // Alpha cutoff
-                    transpositionTable.store(
-                        hash, depth, bestScore,
-                        TranspositionTable.EntryType.UPPER_BOUND, bestMove
-                    )
+                    if (move.capturedPiece == null) {
+                        updateKillerMoves(depth, move)
+                        updateHistory(move, depth)
+                    }
+                    transpositionTable.store(hash, depth, bestScore, TranspositionTable.EntryType.UPPER_BOUND, bestMove)
                     return bestScore
                 }
             }
         }
 
-        // Store exact score in transposition table
-        transpositionTable.store(
-            hash, depth, bestScore,
-            TranspositionTable.EntryType.EXACT, bestMove
-        )
-
+        transpositionTable.store(hash, depth, bestScore, TranspositionTable.EntryType.EXACT, bestMove)
         return bestScore
     }
 
-    /**
-     * Quiescence search to avoid horizon effect
-     * Only searches capture moves to find quiet positions
-     */
     private fun quiescenceSearch(
-        board: Board,
-        alpha: Int,
-        beta: Int,
-        maximizing: Boolean,
-        depth: Int
+        board: Board, alpha: Int, beta: Int,
+        maximizing: Boolean, depth: Int
     ): Int {
         nodesSearched++
-
-        if (depth == 0) {
-            return Evaluator.evaluate(board)
-        }
+        if (depth == 0) return Evaluator.evaluate(board)
 
         val standPat = Evaluator.evaluate(board)
 
@@ -265,13 +297,9 @@ class ChessAI(
             for (move in orderMoves(board, captureMoves)) {
                 val newBoard = board.makeMove(move)
                 newBoard.currentPlayer = board.currentPlayer.opposite()
-
                 val score = quiescenceSearch(newBoard, currentAlpha, beta, false, depth - 1)
-
                 currentAlpha = maxOf(currentAlpha, score)
-                if (currentAlpha >= beta) {
-                    return beta
-                }
+                if (currentAlpha >= beta) return beta
             }
             return currentAlpha
         } else {
@@ -282,56 +310,65 @@ class ChessAI(
             for (move in orderMoves(board, captureMoves)) {
                 val newBoard = board.makeMove(move)
                 newBoard.currentPlayer = board.currentPlayer.opposite()
-
                 val score = quiescenceSearch(newBoard, alpha, currentBeta, true, depth - 1)
-
                 currentBeta = minOf(currentBeta, score)
-                if (currentBeta <= alpha) {
-                    return alpha
-                }
+                if (currentBeta <= alpha) return alpha
             }
             return currentBeta
         }
     }
 
     /**
-     * Order moves to improve alpha-beta pruning efficiency
-     * Priority: TT move > Captures > Non-captures
-     * Optimized to avoid expensive operations
+     * Move ordering: TT move > Captures (MVV-LVA) > Killers > History
      */
-    private fun orderMoves(board: Board, moves: List<Move>, ttMove: Move? = null): List<Move> {
+    private fun orderMoves(board: Board, moves: List<Move>, ttMove: Move? = null, depth: Int = -1): List<Move> {
         return moves.sortedWith(compareByDescending<Move> { move ->
-            // Highest priority: transposition table move
-            if (ttMove != null && move == ttMove) return@compareByDescending 10000
+            if (ttMove != null && move == ttMove) return@compareByDescending 100000
+
+            // Killer moves
+            if (depth >= 0 && depth < killerMoves.size) {
+                if (move == killerMoves[depth][0]) return@compareByDescending 50000
+                if (move == killerMoves[depth][1]) return@compareByDescending 45000
+            }
 
             var score = 0
 
-            // Captures: MVV-LVA (Most Valuable Victim - Least Valuable Attacker)
+            // Captures: MVV-LVA
             if (move.capturedPiece != null) {
-                score += move.capturedPiece.type.baseValue * 10
-                score -= move.piece.type.baseValue / 10
+                score += 10000 + move.capturedPiece.type.baseValue * 10 - move.piece.type.baseValue
             }
 
-            // Center control for non-captures
-            if (move.to.col in 3..5 && move.to.row in 3..6) {
-                score += 5
-            }
-
-            // Forward moves for non-captures
+            // History heuristic for non-captures
             if (move.capturedPiece == null) {
-                if (move.piece.color == PieceColor.RED && move.to.row > move.from.row) {
-                    score += 2
-                } else if (move.piece.color == PieceColor.BLACK && move.to.row < move.from.row) {
-                    score += 2
-                }
+                val colorIdx = move.piece.color.ordinal
+                val fromIdx = move.from.row * 9 + move.from.col
+                val toIdx = move.to.row * 9 + move.to.col
+                score += historyTable[colorIdx][fromIdx][toIdx]
             }
 
             score
         })
     }
 
+    private fun updateKillerMoves(depth: Int, move: Move) {
+        if (depth >= 0 && depth < killerMoves.size) {
+            if (killerMoves[depth][0] != move) {
+                killerMoves[depth][1] = killerMoves[depth][0]
+                killerMoves[depth][0] = move
+            }
+        }
+    }
+
+    private fun updateHistory(move: Move, depth: Int) {
+        val colorIdx = move.piece.color.ordinal
+        val fromIdx = move.from.row * 9 + move.from.col
+        val toIdx = move.to.row * 9 + move.to.col
+        historyTable[colorIdx][fromIdx][toIdx] += depth * depth
+    }
+
     fun clearCache() {
         transpositionTable.clear()
+        for (c in historyTable.indices) for (f in historyTable[c].indices) historyTable[c][f].fill(0)
     }
 
     fun getCacheSize(): Int = transpositionTable.size()

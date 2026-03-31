@@ -5,64 +5,35 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Classical elegant background - ink wash inspired -->
-    <!-- Base layer - deep slate gray (stone blue) -->
+    <!-- Deep wood base -->
     <path
-        android:fillColor="#3A4A4A"
+        android:fillColor="#4A3018"
         android:pathData="M 0,0 L 108,0 L 108,108 L 0,108 Z"/>
 
-    <!-- Middle layer - warm dark olive -->
+    <!-- Lighter wood gradient overlay (top half) -->
     <path
-        android:fillColor="#25453E2F"
-        android:pathData="M 0,20 L 108,20 L 108,108 L 0,108 Z"/>
+        android:fillColor="#18906030"
+        android:pathData="M 0,0 L 108,0 L 108,60 L 0,60 Z"/>
 
-    <!-- Bottom darker layer for depth -->
+    <!-- Wood grain lines -->
     <path
-        android:fillColor="#20252520"
-        android:pathData="M 0,70 L 108,70 L 108,108 L 0,108 Z"/>
-
-    <!-- Subtle center radial highlight - soft beige glow -->
-    <path
-        android:fillColor="#10D4C5B0"
-        android:pathData="M 54,54 m -45,0 a 45,45 0 1,0 90,0 a 45,45 0 1,0 -90,0"/>
-
-    <!-- Traditional corner decorations - bronze tone -->
-    <!-- Top-left -->
-    <path
-        android:strokeColor="#408B6914"
-        android:strokeWidth="2"
-        android:strokeLineCap="round"
+        android:strokeColor="#15000000"
+        android:strokeWidth="1.2"
         android:fillColor="#00000000"
-        android:pathData="M 12,12 L 22,12 M 12,12 L 12,22"/>
+        android:pathData="M 0,12 L 108,13 M 0,24 L 108,25 M 0,36 L 108,35 M 0,48 L 108,49 M 0,60 L 108,59 M 0,72 L 108,73 M 0,84 L 108,83 M 0,96 L 108,97"/>
 
-    <!-- Top-right -->
+    <!-- Subtle grid lines (xiangqi board feel) -->
     <path
-        android:strokeColor="#408B6914"
-        android:strokeWidth="2"
-        android:strokeLineCap="round"
-        android:fillColor="#00000000"
-        android:pathData="M 86,12 L 96,12 M 96,12 L 96,22"/>
-
-    <!-- Bottom-left -->
-    <path
-        android:strokeColor="#408B6914"
-        android:strokeWidth="2"
-        android:strokeLineCap="round"
-        android:fillColor="#00000000"
-        android:pathData="M 12,86 L 22,86 M 12,86 L 12,96"/>
-
-    <!-- Bottom-right -->
-    <path
-        android:strokeColor="#408B6914"
-        android:strokeWidth="2"
-        android:strokeLineCap="round"
-        android:fillColor="#00000000"
-        android:pathData="M 86,96 L 96,96 M 96,86 L 96,96"/>
-
-    <!-- Subtle frame -->
-    <path
-        android:strokeColor="#206B5D1F"
+        android:strokeColor="#15FFFFFF"
         android:strokeWidth="0.8"
         android:fillColor="#00000000"
-        android:pathData="M 25,25 L 83,25 L 83,83 L 25,83 Z"/>
+        android:pathData="M 27,27 L 81,27 L 81,81 L 27,81 Z M 54,27 L 54,81 M 27,54 L 81,54"/>
+
+    <!-- Corner brackets -->
+    <path
+        android:strokeColor="#25D4A860"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M 18,18 L 28,18 M 18,18 L 18,28 M 80,18 L 90,18 M 90,18 L 90,28 M 18,80 L 28,80 M 18,80 L 18,90 M 80,90 L 90,90 M 90,80 L 90,90"/>
 </vector>

@@ -1,11 +1,18 @@
 package com.yingwang.chinesechess
 
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.view.HapticFeedbackConstants
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.Button
-import android.widget.ProgressBar
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -13,6 +20,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.yingwang.chinesechess.GameController.AIDifficulty
 import com.yingwang.chinesechess.audio.GameAudioManager
+import com.yingwang.chinesechess.model.Piece
 import com.yingwang.chinesechess.model.PieceColor
 import com.yingwang.chinesechess.ui.BoardView
 import kotlinx.coroutines.delay
@@ -23,8 +31,13 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var boardView: BoardView
     private lateinit var statusText: TextView
-    private lateinit var aiThinkingIndicator: ProgressBar
+    private lateinit var aiThinkingIndicator: LinearLayout
+    private lateinit var turnIndicatorDot: View
+    private lateinit var thinkingDot1: View
+    private lateinit var thinkingDot2: View
+    private lateinit var thinkingDot3: View
     private lateinit var newGameButton: Button
+    private lateinit var hintButton: Button
     private lateinit var undoButton: Button
     private lateinit var gameController: GameController
     private lateinit var gameModeText: TextView
@@ -33,7 +46,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var gameTimeText: TextView
     private lateinit var moveCountText: TextView
     private lateinit var moveHistoryText: TextView
+    private lateinit var blackCapturedLayout: LinearLayout
+    private lateinit var redCapturedLayout: LinearLayout
     private lateinit var audioManager: GameAudioManager
+    private var thinkingAnimator: AnimatorSet? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,6 +61,21 @@ class MainActivity : AppCompatActivity() {
         setupGameController()
         gameController.startNewGame()
         startTimerUpdates()
+
+        // Check for saved game and offer to resume
+        if (gameController.hasSavedGame(this)) {
+            AlertDialog.Builder(this)
+                .setTitle("继续游戏")
+                .setMessage("发现上次未完成的棋局，是否继续？")
+                .setPositiveButton("继续") { _, _ ->
+                    gameController.loadGame(this)
+                    updateGameModeDisplay()
+                }
+                .setNegativeButton("新游戏") { _, _ ->
+                    gameController.deleteSavedGame(this)
+                }
+                .show()
+        }
     }
 
     override fun onResume() {
@@ -55,13 +86,22 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         audioManager.pauseBackgroundMusic()
+        // Auto-save game
+        if (gameController.getMoveHistory().isNotEmpty()) {
+            gameController.saveGame(this)
+        }
     }
 
     private fun initViews() {
         boardView = findViewById(R.id.boardView)
         statusText = findViewById(R.id.statusText)
         aiThinkingIndicator = findViewById(R.id.aiThinkingIndicator)
+        turnIndicatorDot = findViewById(R.id.turnIndicatorDot)
+        thinkingDot1 = findViewById(R.id.thinkingDot1)
+        thinkingDot2 = findViewById(R.id.thinkingDot2)
+        thinkingDot3 = findViewById(R.id.thinkingDot3)
         newGameButton = findViewById(R.id.newGameButton)
+        hintButton = findViewById(R.id.hintButton)
         undoButton = findViewById(R.id.undoButton)
         gameModeText = findViewById(R.id.gameModeText)
         redScoreText = findViewById(R.id.redScoreText)
@@ -69,17 +109,46 @@ class MainActivity : AppCompatActivity() {
         gameTimeText = findViewById(R.id.gameTimeText)
         moveCountText = findViewById(R.id.moveCountText)
         moveHistoryText = findViewById(R.id.moveHistoryText)
+        blackCapturedLayout = findViewById(R.id.blackCapturedPieces)
+        redCapturedLayout = findViewById(R.id.redCapturedPieces)
 
         newGameButton.setOnClickListener {
             showNewGameDialog()
         }
 
         undoButton.setOnClickListener {
-            if (gameController.undoLastMove()) {
-                boardView.clearSelection()
-                Toast.makeText(this, "Move undone", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, "No moves to undo", Toast.LENGTH_SHORT).show()
+            if (gameController.getMoveHistory().isEmpty()) {
+                Toast.makeText(this, "没有可以悔的棋", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            AlertDialog.Builder(this)
+                .setTitle("确认悔棋")
+                .setMessage("确定要悔棋吗？")
+                .setPositiveButton("确定") { _, _ ->
+                    if (gameController.undoLastMove()) {
+                        boardView.clearSelection()
+                        Toast.makeText(this, "已悔棋", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                .setNegativeButton("取消", null)
+                .show()
+        }
+
+        hintButton.setOnClickListener {
+            if (!gameController.isPlayerTurn()) {
+                Toast.makeText(this, "不是你的回合", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            gameController.getHint { move ->
+                runOnUiThread {
+                    if (move != null) {
+                        boardView.highlightMove(move)
+                        Toast.makeText(this, "建议: ${formatMove(move)}", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(this, "无法提供建议", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
         }
     }
@@ -93,7 +162,6 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 boardView.setBoard(board)
                 updateStatus(board.currentPlayer)
-                // Clear move highlight when starting a new game (empty move history)
                 if (gameController.getMoveHistory().isEmpty()) {
                     boardView.highlightMove(null)
                 }
@@ -122,7 +190,9 @@ class MainActivity : AppCompatActivity() {
         gameController.onAIThinking = { isThinking ->
             runOnUiThread {
                 aiThinkingIndicator.visibility = if (isThinking) View.VISIBLE else View.GONE
+                if (isThinking) startThinkingAnimation() else stopThinkingAnimation()
                 undoButton.isEnabled = !isThinking
+                hintButton.isEnabled = !isThinking
                 statusText.text = if (isThinking) "AI思考中..." else getStatusText()
             }
         }
@@ -130,7 +200,12 @@ class MainActivity : AppCompatActivity() {
         gameController.onMoveCompleted = { move ->
             runOnUiThread {
                 boardView.highlightMove(move)
-                // Play appropriate sound effect
+                // Haptic feedback
+                boardView.performHapticFeedback(
+                    HapticFeedbackConstants.VIRTUAL_KEY,
+                    HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
+                )
+                // Sound effects
                 if (move.capturedPiece != null) {
                     audioManager.playCaptureSound()
                 } else {
@@ -145,8 +220,20 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        gameController.onMoveAnimationRequested = { move, preBoard ->
+            runOnUiThread {
+                boardView.animateMove(move, preBoard) {
+                    boardView.setBoard(gameController.getCurrentBoard())
+                }
+            }
+        }
+
         boardView.setOnMoveListener { move ->
-            // Check if it's the player's turn
+            if (gameController.isInReplayMode()) {
+                Toast.makeText(this, "回放模式中，不能走棋", Toast.LENGTH_SHORT).show()
+                boardView.clearSelection()
+                return@setOnMoveListener
+            }
             if (!gameController.isPlayerTurn()) {
                 Toast.makeText(this, "不是你的回合", Toast.LENGTH_SHORT).show()
                 boardView.clearSelection()
@@ -165,6 +252,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateStatus(currentPlayer: PieceColor) {
         statusText.text = getStatusText()
+        // Update turn indicator dot color
+        val dotDrawable = turnIndicatorDot.background as? GradientDrawable
+        dotDrawable?.setColor(
+            if (currentPlayer == PieceColor.RED) Color.rgb(200, 40, 40)
+            else Color.rgb(40, 40, 40)
+        )
     }
 
     private fun getStatusText(): String {
@@ -183,17 +276,55 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateGameStats(stats: GameController.GameStats) {
-        // Score represents material advantage (captured piece values)
         redScoreText.text = "红方: ${stats.redScore}"
         blackScoreText.text = "黑方: ${stats.blackScore}"
-
         gameTimeText.text = formatTime(stats.gameTime)
-
-        // Update move count
         moveCountText.text = "回合: ${stats.moveNumber}"
-
-        // Update move history
         updateMoveHistory()
+        updateCapturedPiecesDisplay(stats)
+    }
+
+    private fun updateCapturedPiecesDisplay(stats: GameController.GameStats) {
+        updateCapturedRow(blackCapturedLayout, stats.redCapturedPieces)
+        updateCapturedRow(redCapturedLayout, stats.blackCapturedPieces)
+    }
+
+    private fun updateCapturedRow(container: LinearLayout, pieces: List<Piece>) {
+        container.removeAllViews()
+        val sorted = pieces.sortedByDescending { it.type.baseValue }
+        for (piece in sorted) {
+            val tv = TextView(this).apply {
+                text = piece.type.getDisplayName(piece.color)
+                textSize = 14f
+                typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
+                setTextColor(
+                    if (piece.color == PieceColor.RED) Color.rgb(170, 20, 20)
+                    else Color.rgb(40, 40, 40)
+                )
+                setPadding(4, 0, 4, 0)
+            }
+            container.addView(tv)
+        }
+    }
+
+    private fun startThinkingAnimation() {
+        val dots = listOf(thinkingDot1, thinkingDot2, thinkingDot3)
+        val animators = dots.mapIndexed { index, dot ->
+            ObjectAnimator.ofFloat(dot, "alpha", 0.3f, 1f, 0.3f).apply {
+                duration = 800
+                repeatCount = ValueAnimator.INFINITE
+                startDelay = index * 200L
+            }
+        }
+        thinkingAnimator = AnimatorSet().apply {
+            playTogether(animators.map { it as android.animation.Animator })
+            start()
+        }
+    }
+
+    private fun stopThinkingAnimation() {
+        thinkingAnimator?.cancel()
+        thinkingAnimator = null
     }
 
     private fun formatTime(timeInMillis: Long): String {
@@ -222,22 +353,18 @@ class MainActivity : AppCompatActivity() {
             val formattedMove = formatMove(move)
 
             if (index % 2 == 0) {
-                // Red's move (start of new round)
                 history.append(String.format("%2d. %-8s", moveNum, formattedMove))
             } else {
-                // Black's move (end of round)
                 history.append(String.format("%-8s\n", formattedMove))
             }
         }
 
-        // If last move was red's move (odd number of moves), add newline
         if (moves.size % 2 == 1) {
             history.append("\n")
         }
 
         moveHistoryText.text = history.toString()
 
-        // Auto-scroll to bottom
         moveHistoryText.post {
             val scrollView = moveHistoryText.parent as? android.widget.ScrollView
             scrollView?.fullScroll(android.view.View.FOCUS_DOWN)
@@ -245,28 +372,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun formatMove(move: com.yingwang.chinesechess.model.Move): String {
-        // Format move in standard Chinese chess notation (e.g., "车五进九")
         val isRed = move.piece.color == PieceColor.RED
-
-        // Get piece display name based on color
         val pieceChar = move.piece.type.getDisplayName(move.piece.color)
 
-        // Get column position from player's perspective
-        // Red: columns 0-8 map to 九八七六五四三二一 (right to left)
-        // Black: columns 0-8 map to 1-9 (left to right)
         val columnNotation = if (isRed) {
             arrayOf("九", "八", "七", "六", "五", "四", "三", "二", "一")[move.from.col]
         } else {
             (move.from.col + 1).toString()
         }
 
-        // Determine direction and steps
         val rowDiff = move.to.row - move.from.row
         val colDiff = move.to.col - move.from.col
 
         val (direction, steps) = when {
             rowDiff == 0 -> {
-                // Horizontal move (平)
                 val destCol = if (isRed) {
                     arrayOf("九", "八", "七", "六", "五", "四", "三", "二", "一")[move.to.col]
                 } else {
@@ -275,7 +394,6 @@ class MainActivity : AppCompatActivity() {
                 "平" to destCol
             }
             (isRed && rowDiff < 0) || (!isRed && rowDiff > 0) -> {
-                // Forward move (进)
                 val stepCount = Math.abs(rowDiff)
                 val stepNotation = if (isRed) {
                     arrayOf("", "一", "二", "三", "四", "五", "六", "七", "八", "九")[stepCount]
@@ -285,7 +403,6 @@ class MainActivity : AppCompatActivity() {
                 "进" to stepNotation
             }
             else -> {
-                // Backward move (退)
                 val stepCount = Math.abs(rowDiff)
                 val stepNotation = if (isRed) {
                     arrayOf("", "一", "二", "三", "四", "五", "六", "七", "八", "九")[stepCount]
@@ -302,7 +419,7 @@ class MainActivity : AppCompatActivity() {
     private fun startTimerUpdates() {
         lifecycleScope.launch {
             while (isActive) {
-                delay(1000) // Update every second
+                delay(1000)
                 val gameTime = System.currentTimeMillis() - gameController.getGameStartTime()
                 gameTimeText.text = formatTime(gameTime)
             }
@@ -310,13 +427,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateGameModeDisplay() {
-        val modeText = when (gameController.getGameMode()) {
-            GameController.GameMode.PLAYER_VS_PLAYER -> "玩家 vs 玩家"
-            GameController.GameMode.PLAYER_VS_AI -> {
-                val playerColor = if (gameController.getAIColor() == PieceColor.RED) "黑" else "红"
-                "玩家(${playerColor}) vs AI"
+        val modeText = when {
+            gameController.isInReplayMode() -> "棋谱回放"
+            gameController.isEndgameMode() -> "残局练习"
+            else -> when (gameController.getGameMode()) {
+                GameController.GameMode.PLAYER_VS_PLAYER -> "玩家 vs 玩家"
+                GameController.GameMode.PLAYER_VS_AI -> {
+                    val playerColor = if (gameController.getAIColor() == PieceColor.RED) "黑" else "红"
+                    "玩家(${playerColor}) vs AI"
+                }
+                GameController.GameMode.AI_VS_AI -> "AI vs AI"
             }
-            GameController.GameMode.AI_VS_AI -> "AI vs AI"
         }
         gameModeText.text = modeText
     }
@@ -326,7 +447,8 @@ class MainActivity : AppCompatActivity() {
             "玩家 vs AI (红方)",
             "玩家 vs AI (黑方)",
             "玩家 vs 玩家",
-            "AI vs AI"
+            "AI vs AI",
+            "残局练习"
         )
 
         AlertDialog.Builder(this)
@@ -350,9 +472,57 @@ class MainActivity : AppCompatActivity() {
                         gameController.setGameMode(GameController.GameMode.AI_VS_AI)
                         showDifficultyDialog()
                     }
+                    4 -> {
+                        showEndgameDialog()
+                    }
                 }
             }
             .show()
+    }
+
+    private fun showEndgameDialog() {
+        val names = EndgamePositions.positions.map { "${it.name} - ${it.description}" }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("选择残局")
+            .setItems(names) { _, which ->
+                val position = EndgamePositions.positions[which]
+                gameController.startEndgamePosition(position)
+                updateGameModeDisplay()
+            }
+            .show()
+    }
+
+    private fun showReplayControls() {
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("棋谱回放")
+            .setMessage(gameController.getReplayInfo())
+            .setPositiveButton("下一步") { _, _ -> }
+            .setNegativeButton("上一步") { _, _ -> }
+            .setNeutralButton("退出回放") { _, _ ->
+                gameController.exitReplayMode()
+                updateGameModeDisplay()
+            }
+            .setCancelable(false)
+            .create()
+
+        dialog.show()
+
+        // Override button behaviors to prevent auto-dismiss
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            if (gameController.replayStepForward()) {
+                dialog.setMessage(gameController.getReplayInfo())
+            } else {
+                Toast.makeText(this, "已到最后一步", Toast.LENGTH_SHORT).show()
+            }
+        }
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener {
+            if (gameController.replayStepBack()) {
+                dialog.setMessage(gameController.getReplayInfo())
+            } else {
+                Toast.makeText(this, "已到第一步", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun showDifficultyDialog() {
@@ -364,7 +534,6 @@ class MainActivity : AppCompatActivity() {
             "大师 (Master)"
         )
 
-        // Preserve current game mode and AI color before recreating controller
         val currentMode = gameController.getGameMode()
         val currentAIColor = gameController.getAIColor()
 
@@ -380,12 +549,10 @@ class MainActivity : AppCompatActivity() {
                     else -> AIDifficulty.PROFESSIONAL
                 }
 
-                // Recreate game controller with new difficulty
                 gameController.destroy()
                 gameController = GameController(this@MainActivity, difficulty)
                 setupGameController()
 
-                // Restore the game mode and AI color
                 gameController.setGameMode(currentMode, currentAIColor)
                 gameController.startNewGame()
                 updateGameModeDisplay()
@@ -406,6 +573,23 @@ class MainActivity : AppCompatActivity() {
             }
             R.id.action_undo -> {
                 gameController.undoLastMove()
+                true
+            }
+            R.id.action_endgame -> {
+                showEndgameDialog()
+                true
+            }
+            R.id.action_replay -> {
+                if (gameController.isInReplayMode()) {
+                    gameController.exitReplayMode()
+                    updateGameModeDisplay()
+                    Toast.makeText(this, "退出回放模式", Toast.LENGTH_SHORT).show()
+                } else if (gameController.enterReplayMode()) {
+                    updateGameModeDisplay()
+                    showReplayControls()
+                } else {
+                    Toast.makeText(this, "没有可回放的棋谱", Toast.LENGTH_SHORT).show()
+                }
                 true
             }
             R.id.action_about -> {
@@ -437,6 +621,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        stopThinkingAnimation()
         gameController.destroy()
         audioManager.release()
     }

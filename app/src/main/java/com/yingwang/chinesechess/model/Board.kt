@@ -14,6 +14,18 @@ class Board {
         const val COLS = 9
 
         /**
+         * Creates a board from a list of pieces (used for endgame positions)
+         */
+        fun createFromPieces(pieces: List<Piece>, firstPlayer: PieceColor = PieceColor.RED): Board {
+            val board = Board()
+            for (piece in pieces) {
+                board.addPiece(piece)
+            }
+            board.currentPlayer = firstPlayer
+            return board
+        }
+
+        /**
          * Creates a new board with standard starting position
          */
         fun createInitialBoard(): Board {
@@ -188,13 +200,5 @@ class Board {
     /**
      * Get a hash code for this board position (for transposition table)
      */
-    fun getPositionHash(): Long {
-        var hash = 0L
-        for ((pos, piece) in pieces) {
-            hash = hash xor (piece.type.ordinal.toLong() shl (pos.row * 9 + pos.col))
-            hash = hash xor (piece.color.ordinal.toLong() shl (pos.row * 9 + pos.col + 32))
-        }
-        hash = hash xor (currentPlayer.ordinal.toLong() shl 63)
-        return hash
-    }
+    fun getPositionHash(): Long = com.yingwang.chinesechess.ai.ZobristHash.hash(this)
 }

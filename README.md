@@ -1,163 +1,163 @@
-# 中国象棋 (Chinese Chess) - Android
+# 中国象棋 Chinese Chess
 
-A professional-level Chinese Chess (Xiangqi) game for Android with advanced AI.
+<p align="center">
+  <img src="docs/screenshot.png" alt="Chinese Chess" width="300"/>
+</p>
+
+<p align="center">
+  <a href="https://play.google.com/store/apps/details?id=com.yingwang.chinesechess">
+    <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" width="200"/>
+  </a>
+</p>
+
+<p align="center">
+  <strong><a href="https://yingwang.github.io/chinese_chess_mobile/">Website</a></strong> ·
+  <strong><a href="https://play.google.com/store/apps/details?id=com.yingwang.chinesechess">Google Play</a></strong> ·
+  <strong><a href="PRIVACY_POLICY.md">Privacy Policy</a></strong>
+</p>
+
+A feature-rich Chinese Chess (Xiangqi / 象棋) game for Android with a strong AI engine, classical UI, and endgame puzzles.
 
 ## Features
 
 ### Game Modes
-- **Player vs AI** - Play against professional-level AI
-- **Player vs Player** - Play with a friend on the same device
-- **AI vs AI** - Watch AI play against itself
+- **Player vs AI** — 5 difficulty levels from beginner to master
+- **Player vs Player** — Same-device local multiplayer
+- **AI vs AI** — Watch the engine play itself
+- **Endgame Puzzles** — 8 classic endgame positions (重炮杀, 铁门栓, 天地炮, 马后炮, etc.)
 
-### Professional AI Engine
+### AI Engine
 
-The AI uses state-of-the-art game engine techniques:
+The AI uses modern game engine techniques:
 
-1. **Alpha-Beta Pruning** - Efficient tree search algorithm that dramatically reduces the number of positions evaluated
-2. **Iterative Deepening** - Progressive depth search for better time management
-3. **Transposition Tables** - Caches evaluated positions to avoid redundant calculations
-4. **Move Ordering** - Prioritizes promising moves to improve pruning efficiency
-5. **Quiescence Search** - Evaluates capture sequences to avoid horizon effect
-6. **Advanced Evaluation Function** - Uses piece-square tables and positional analysis
+| Technique | Description |
+|-----------|-------------|
+| Alpha-Beta Pruning | Efficient minimax search with pruning |
+| Null Move Pruning | Skip-turn heuristic for fast cutoffs |
+| Late Move Reductions | Search late moves at reduced depth |
+| Iterative Deepening | Progressive depth with aspiration windows |
+| Zobrist Hashing | Fast position identification |
+| Transposition Tables | Depth-preferred replacement strategy |
+| Killer Move Heuristic | Remember refutation moves per depth |
+| History Heuristic | Track historically successful moves |
+| Quiescence Search | Resolve captures to avoid horizon effect |
+| MVV-LVA Ordering | Most Valuable Victim – Least Valuable Attacker |
+| Opening Book | 30+ classic opening lines |
 
-### AI Difficulty Levels
+#### Difficulty Levels
 
-- **Beginner** (Depth 1, 0.5s) - Good for learning
-- **Intermediate** (Depth 2, 1s) - Casual play
-- **Advanced** (Depth 3, 2s) - Challenging opponent
-- **Professional** (Depth 4, 4s) - Strong amateur level
-- **Master** (Depth 5, 6s) - Near professional level
+| Level | Search Depth | Time Limit | Quiescence |
+|-------|-------------|------------|------------|
+| Beginner | 2 | 1s | Off |
+| Intermediate | 3 | 2s | Depth 2 |
+| Advanced | 4 | 3s | Depth 3 |
+| Professional | 5 | 5s | Depth 4 |
+| Master | 7 | 10s | Depth 5 |
 
-### Opening Book
+#### Evaluation Function
 
-The AI uses an opening book for the first few moves, featuring classic Chinese chess openings:
-- **Center Cannon** (中炮) - Aggressive central control
-- **Horse Openings** (马局) - Flexible development
-- **Screen Horse Defense** (屏风马) - Solid defensive structure
-- **Counter Cannon** (对攻) - Direct confrontation
+- Piece-square tables for all 7 piece types
+- King safety (advisor/elephant guard assessment)
+- Crossed-river bonuses (soldiers, horses)
+- Chariot activity (open file bonus, development penalty)
+- Horse coordination (connected horses bonus)
+- Cannon endgame adjustment (fewer jump targets)
+- Threat detection (卧槽马, deep chariot penetration)
 
-## Technical Details
+### User Interface
 
-### Architecture
+- Classical wood-grain board with gradient textures
+- 3D convex pieces with radial gradient, specular highlight, and drop shadow
+- Inner decorative ring on each piece (traditional xiangqi style)
+- Warm gold selection glow with refined move indicators
+- Smooth 200ms piece movement animation
+- Haptic feedback on selection and placement
+- Pulsing dots AI thinking indicator
 
-```
-app/
-├── model/          # Game logic and rules
-│   ├── Board.kt    # Board representation and move validation
-│   ├── Piece.kt    # Piece movement rules
-│   ├── Position.kt # Board positions
-│   └── Move.kt     # Move representation
-├── ai/             # AI engine
-│   ├── ChessAI.kt  # Main AI with alpha-beta search
-│   ├── Evaluator.kt # Position evaluation
-│   └── TranspositionTable.kt # Position caching
-├── ui/             # User interface
-│   └── BoardView.kt # Custom board rendering
-└── GameController.kt # Game flow control
-```
+### Additional Features
 
-### Game Rules
+- **Save/Load** — Auto-saves on exit, offers to resume on launch
+- **Hint System** — AI suggests the best move for the current position
+- **Game Replay** — Step through move history forward/backward
+- **Undo with Confirmation** — Prevents accidental undo
+- **Captured Pieces Display** — Shows eaten pieces above/below the board
+- **Turn Indicator** — Color dot shows whose turn it is
+- **Move History** — Chinese notation (e.g., 車五進九)
+- **Foldable Support** — Handles screen configuration changes gracefully
 
-The implementation follows standard Chinese Chess (Xiangqi) rules:
+## Screenshots
 
-- **General (将/帅)** - Moves one step orthogonally within palace
-- **Advisor (士/仕)** - Moves one step diagonally within palace
-- **Elephant (象/相)** - Moves two steps diagonally, cannot cross river
-- **Horse (马/馬)** - Moves in L-shape, can be blocked
-- **Chariot (车/車)** - Moves any distance orthogonally
-- **Cannon (炮/砲)** - Moves like chariot, captures by jumping
-- **Soldier (兵/卒)** - Moves forward, sideways after crossing river
-
-Special rules:
-- **Flying General** - Generals cannot face each other directly
-- **Check and Checkmate** - Standard chess-like rules
-- **Stalemate** - No legal moves results in draw
+<p align="center">
+  <em>Screenshots coming soon</em>
+</p>
 
 ## Building
 
 ### Requirements
-- Android Studio Arctic Fox or later
+- Android Studio Hedgehog or later
+- JDK 17+
 - Gradle 8.2+
 - Kotlin 1.9.20+
-- Min SDK: 24 (Android 7.0)
-- Target SDK: 35 (Android 15)
+- Min SDK 24 (Android 7.0) · Target SDK 35 (Android 15)
 
-### Build Instructions
+### Build & Install
 
 ```bash
-# Clone the repository
 git clone https://github.com/yingwang/chinese_chess_mobile.git
 cd chinese_chess_mobile
-
-# Build the app
 ./gradlew assembleDebug
-
-# Install on device
 ./gradlew installDebug
-
-# Run tests (if added)
-./gradlew test
 ```
 
-## How to Play
+## Architecture
 
-1. **Starting a Game**
-   - Tap "新游戏" (New Game) to select game mode
-   - Choose AI difficulty if playing against AI
-   - Red side moves first
+```
+app/src/main/java/com/yingwang/chinesechess/
+├── model/                    # Game logic
+│   ├── Board.kt              # Board state, move validation
+│   ├── Piece.kt              # Piece movement rules (7 types)
+│   ├── Move.kt               # Move representation
+│   ├── Position.kt           # Board coordinates
+│   ├── PieceType.kt          # Piece types with Chinese names
+│   └── PieceColor.kt         # RED / BLACK
+├── ai/                       # AI engine
+│   ├── ChessAI.kt            # Search (alpha-beta, NMP, LMR)
+│   ├── Evaluator.kt          # Position evaluation
+│   ├── TranspositionTable.kt # TT with depth-preferred replacement
+│   ├── ZobristHash.kt        # Zobrist position hashing
+│   └── OpeningBook.kt        # Opening book (30+ lines)
+├── ui/
+│   └── BoardView.kt          # Custom Canvas board rendering
+├── audio/
+│   └── GameAudioManager.kt   # Sound effects & background music
+├── GameController.kt         # Game flow, save/load, replay
+├── EndgamePositions.kt       # 8 classic endgame puzzles
+├── SoundManager.kt           # Fallback tone generator
+└── MainActivity.kt           # UI wiring
+```
 
-2. **Making Moves**
-   - Tap a piece to select it - selected piece has a bright green glow
-   - Legal moves are shown with indicators:
-     - Blue dashed circles: normal moves
-     - Red dashed circles: capture moves
-   - Tap destination to move
-   - Move indicators show even when destination square is occupied
+## Game Rules
 
-3. **Game Controls**
-   - **悔棋 (Undo)** - Take back the last move(s)
-   - **Menu → 关于 (About)** - View AI statistics
+| Piece | Red | Black | Movement |
+|-------|-----|-------|----------|
+| General | 帅 | 将 | 1 step orthogonal, within palace |
+| Advisor | 仕 | 士 | 1 step diagonal, within palace |
+| Elephant | 相 | 象 | 2 steps diagonal, blocked by eye, no river crossing |
+| Horse | 馬 | 马 | L-shape, blocked by adjacent piece |
+| Chariot | 車 | 车 | Any distance orthogonal |
+| Cannon | 砲 | 炮 | Moves like chariot, captures by jumping over 1 piece |
+| Soldier | 兵 | 卒 | Forward only; forward + sideways after crossing river |
 
-## AI Performance
-
-The AI typically searches:
-- **Professional level**: 50,000 - 500,000 positions per move
-- **Master level**: 200,000 - 2,000,000 positions per move
-
-Search depth increases dramatically with iterative deepening and transposition table hits.
-
-## Credits
-
-Inspired by the [yingwang/chinese-chess](https://github.com/yingwang/chinese-chess) project.
-
-This implementation features a completely rewritten AI engine with modern techniques for professional-level play.
-
-## License
-
-GPL-3.0 License - see LICENSE file for details
+Special: **Flying General** rule — generals cannot face each other on an open file.
 
 ## Privacy
 
-**We respect your privacy.** This app does not collect, store, or share any personal information.
+This app does not collect any personal data. No internet connection required. No tracking, analytics, or ads. All game data is stored locally. See [Privacy Policy](PRIVACY_POLICY.md).
 
-- No internet connection required
-- No personal data collection
-- No tracking or analytics
-- No advertisements
-- All data stored locally on your device
+## License
 
-For more details, see our [Privacy Policy](PRIVACY_POLICY.md).
+[GPL-3.0](LICENSE)
 
-## Future Enhancements
+## Credits
 
-Potential improvements:
-- ~~Opening book for known strong openings~~ ✅ **Implemented in v1.1.0**
-- Endgame tablebase
-- Machine learning evaluation
-- Online multiplayer
-- Game analysis and hints
-- Save/load games
-- Position setup mode
-- Replay games with annotations
-- Additional opening variations
-- Training mode with hints
+Built with Kotlin and Android Canvas. Inspired by [yingwang/chinese-chess](https://github.com/yingwang/chinese-chess) (web version).

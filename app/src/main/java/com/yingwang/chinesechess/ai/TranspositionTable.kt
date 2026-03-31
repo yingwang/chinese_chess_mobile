@@ -23,12 +23,16 @@ class TranspositionTable(private val maxSize: Int = 1_000_000) {
     private val table = mutableMapOf<Long, Entry>()
 
     fun store(hash: Long, depth: Int, score: Int, type: EntryType, bestMove: Move?) {
-        if (table.size >= maxSize) {
-            // Simple replacement strategy: clear oldest entries
-            val keysToRemove = table.keys.take(maxSize / 4)
-            keysToRemove.forEach { table.remove(it) }
+        val existing = table[hash]
+        // Replace if: no existing entry, or new search is at same or greater depth
+        if (existing == null || depth >= existing.depth) {
+            if (table.size >= maxSize && existing == null) {
+                // Table full and inserting new key: remove a random entry
+                val keyToRemove = table.keys.first()
+                table.remove(keyToRemove)
+            }
+            table[hash] = Entry(depth, score, type, bestMove)
         }
-        table[hash] = Entry(depth, score, type, bestMove)
     }
 
     fun probe(hash: Long): Entry? = table[hash]
