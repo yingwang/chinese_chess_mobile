@@ -92,6 +92,11 @@ class GameAudioManager(private val context: Context) {
         isSoundEnabled = enabled
     }
 
+    fun setMuted(muted: Boolean) {
+        isSoundEnabled = !muted
+        isMusicEnabled = !muted
+    }
+
     fun setMusicEnabled(enabled: Boolean) {
         isMusicEnabled = enabled
         if (!enabled) {

@@ -82,7 +82,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        audioManager.startBackgroundMusic()
+        if (!isMuted) audioManager.startBackgroundMusic()
     }
 
     override fun onPause() {
@@ -638,6 +638,19 @@ class MainActivity : AppCompatActivity() {
                 }
                 true
             }
+            R.id.action_mute -> {
+                isMuted = !isMuted
+                gameController.setSoundEnabled(!isMuted)
+                audioManager.setMuted(isMuted)
+                if (isMuted) audioManager.pauseBackgroundMusic()
+                else audioManager.startBackgroundMusic()
+                Toast.makeText(this, if (isMuted) "已静音" else "已开启音效", Toast.LENGTH_SHORT).show()
+                true
+            }
+            R.id.action_stats -> {
+                showStatsDialog()
+                true
+            }
             R.id.action_export -> {
                 exportMoveHistory()
                 true
@@ -683,6 +696,7 @@ class MainActivity : AppCompatActivity() {
                     0 -> { // 静音
                         isMuted = !isMuted
                         gameController.setSoundEnabled(!isMuted)
+                        audioManager.setMuted(isMuted)
                         if (isMuted) audioManager.pauseBackgroundMusic()
                         else audioManager.startBackgroundMusic()
                         Toast.makeText(this, if (isMuted) "已静音" else "已开启音效", Toast.LENGTH_SHORT).show()
