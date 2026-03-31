@@ -375,6 +375,8 @@ class GameController(
 
     fun getAIColor(): PieceColor = aiColor
 
+    fun getDifficulty(): AIDifficulty = difficulty
+
     fun getGameStartTime(): Long = gameStartTime
 
     fun isPlayerTurn(): Boolean {

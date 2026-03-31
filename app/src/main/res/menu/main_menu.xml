@@ -18,6 +18,18 @@
         android:title="棋谱回放"
         app:showAsAction="never" />
     <item
+        android:id="@+id/action_export"
+        android:title="导出棋谱"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_mute"
+        android:title="音效开关"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_stats"
+        android:title="我的战绩"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_about"
         android:title="关于"
         app:showAsAction="never" />

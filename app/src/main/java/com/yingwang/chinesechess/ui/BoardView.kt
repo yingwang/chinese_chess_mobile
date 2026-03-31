@@ -3,11 +3,14 @@ package com.yingwang.chinesechess.ui
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.*
+import android.graphics.drawable.BitmapDrawable
 import android.util.AttributeSet
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
+import androidx.core.content.ContextCompat
+import com.yingwang.chinesechess.R
 import com.yingwang.chinesechess.model.*
 
 /**
@@ -157,9 +160,28 @@ class BoardView @JvmOverloads constructor(
     private var offsetY = 0f
     private var lastMove: Move? = null
 
+    // Bitmap textures
+    private var boardBitmap: Bitmap? = null
+    private var pieceBitmap: Bitmap? = null
+    private val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+
     init {
-        // BlurMaskFilter requires software rendering
         setLayerType(LAYER_TYPE_SOFTWARE, null)
+        loadTextures()
+    }
+
+    private fun loadTextures() {
+        try {
+            val bd = ContextCompat.getDrawable(context, R.drawable.board_texture)
+            boardBitmap = (bd as? BitmapDrawable)?.bitmap
+                ?: BitmapFactory.decodeResource(resources, R.drawable.board_texture)
+
+            val pd = ContextCompat.getDrawable(context, R.drawable.piece_texture)
+            pieceBitmap = (pd as? BitmapDrawable)?.bitmap
+                ?: BitmapFactory.decodeResource(resources, R.drawable.piece_texture)
+        } catch (_: Exception) {
+            // Fall back to code-drawn textures
+        }
     }
 
     fun setBoard(newBoard: Board) {
@@ -249,25 +271,33 @@ class BoardView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
+        val boardLeft = offsetX - cellSize / 2
+        val boardTop = offsetY - cellSize / 2
+        val boardRight = offsetX + cellSize * 8.5f
+        val boardBottom = offsetY + cellSize * 9.5f
+
         // Board shadow
         canvas.drawRoundRect(
-            offsetX - cellSize / 2 + 4f,
-            offsetY - cellSize / 2 + 4f,
-            offsetX + cellSize * 8.5f + 4f,
-            offsetY + cellSize * 9.5f + 4f,
+            boardLeft + 4f, boardTop + 4f,
+            boardRight + 4f, boardBottom + 4f,
             8f, 8f, boardShadowPaint
         )
 
-        // Board background
-        canvas.drawRoundRect(
-            offsetX - cellSize / 2,
-            offsetY - cellSize / 2,
-            offsetX + cellSize * 8.5f,
-            offsetY + cellSize * 9.5f,
-            8f, 8f, boardPaint
-        )
-
-        drawWoodGrain(canvas)
+        // Board background with texture or fallback
+        val bmp = boardBitmap
+        if (bmp != null) {
+            val src = Rect(0, 0, bmp.width, bmp.height)
+            val dst = RectF(boardLeft, boardTop, boardRight, boardBottom)
+            canvas.save()
+            val path = Path()
+            path.addRoundRect(dst, 8f, 8f, Path.Direction.CW)
+            canvas.clipPath(path)
+            canvas.drawBitmap(bmp, src, dst, bitmapPaint)
+            canvas.restore()
+        } else {
+            canvas.drawRoundRect(boardLeft, boardTop, boardRight, boardBottom, 8f, 8f, boardPaint)
+            drawWoodGrain(canvas)
+        }
         drawGrid(canvas)
         drawRiverText(canvas)
         drawPalaceLines(canvas)
@@ -528,62 +558,53 @@ class BoardView @JvmOverloads constructor(
         val radius = cellSize * 0.4f
         val isMovedPiece = lastMove?.to == piece.position && animatingMove == null
 
-        // Drop shadow — larger offset for more depth
+        // Drop shadow
         if (alpha > 128) {
             canvas.drawCircle(x + 4f, y + 5f, radius + 1f, pieceShadowPaint)
         }
 
-        // Base dark edge ring (simulates piece thickness)
-        val edgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.argb(alpha, 160, 130, 95)
-            style = Paint.Style.FILL
-        }
-        canvas.drawCircle(x, y + 1.5f, radius, edgePaint)
+        val pbmp = pieceBitmap
+        if (pbmp != null) {
+            // Draw piece using bitmap texture
+            val src = Rect(0, 0, pbmp.width, pbmp.height)
+            val dst = RectF(x - radius, y - radius, x + radius, y + radius)
+            bitmapPaint.alpha = alpha
+            canvas.drawBitmap(pbmp, src, dst, bitmapPaint)
+            bitmapPaint.alpha = 255
+        } else {
+            // Fallback: code-drawn piece
+            val edgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.argb(alpha, 160, 130, 95)
+                style = Paint.Style.FILL
+            }
+            canvas.drawCircle(x, y + 1.5f, radius, edgePaint)
 
-        // Main piece gradient — stronger contrast for 3D convex look
-        val gradient = RadialGradient(
-            x - radius * 0.3f, y - radius * 0.3f, radius * 1.3f,
-            intArrayOf(
-                Color.rgb(255, 250, 235),  // bright white-cream highlight
-                Color.rgb(245, 230, 200),  // warm cream
-                Color.rgb(220, 195, 160),  // medium beige
-                Color.rgb(175, 145, 110)   // dark edge
-            ),
-            floatArrayOf(0f, 0.3f, 0.65f, 1f),
-            Shader.TileMode.CLAMP
-        )
-
-        val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = gradient
-            style = Paint.Style.FILL
-            this.alpha = alpha
-        }
-        canvas.drawCircle(x, y, radius, circlePaint)
-
-        // Specular highlight — small bright spot top-left
-        val specPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = RadialGradient(
-                x - radius * 0.35f, y - radius * 0.35f, radius * 0.5f,
+            val gradient = RadialGradient(
+                x - radius * 0.3f, y - radius * 0.3f, radius * 1.3f,
                 intArrayOf(
-                    Color.argb((alpha * 0.35f).toInt(), 255, 255, 255),
-                    Color.argb(0, 255, 255, 255)
+                    Color.rgb(255, 250, 235),
+                    Color.rgb(245, 230, 200),
+                    Color.rgb(220, 195, 160),
+                    Color.rgb(175, 145, 110)
                 ),
-                floatArrayOf(0f, 1f),
+                floatArrayOf(0f, 0.3f, 0.65f, 1f),
                 Shader.TileMode.CLAMP
             )
-            style = Paint.Style.FILL
+            val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                shader = gradient
+                style = Paint.Style.FILL
+                this.alpha = alpha
+            }
+            canvas.drawCircle(x, y, radius, circlePaint)
+
+            pieceOutlinePaint.alpha = alpha
+            canvas.drawCircle(x, y, radius, pieceOutlinePaint)
+            pieceOutlinePaint.alpha = 255
+
+            pieceInnerRingPaint.alpha = (alpha * 80 / 255).coerceIn(0, 255)
+            canvas.drawCircle(x, y, radius * 0.72f, pieceInnerRingPaint)
+            pieceInnerRingPaint.alpha = 80
         }
-        canvas.drawCircle(x - radius * 0.2f, y - radius * 0.2f, radius * 0.5f, specPaint)
-
-        // Outer ring — at full radius edge
-        pieceOutlinePaint.alpha = alpha
-        canvas.drawCircle(x, y, radius, pieceOutlinePaint)
-        pieceOutlinePaint.alpha = 255
-
-        // Inner decorative ring — proportional spacing (70% of radius)
-        pieceInnerRingPaint.alpha = (alpha * 80 / 255).coerceIn(0, 255)
-        canvas.drawCircle(x, y, radius * 0.72f, pieceInnerRingPaint)
-        pieceInnerRingPaint.alpha = 80
 
         // Moved piece highlight
         if (isMovedPiece) {

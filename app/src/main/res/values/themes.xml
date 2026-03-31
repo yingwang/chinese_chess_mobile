@@ -2,9 +2,39 @@
 <resources>
     <style name="Theme.ChineseChess" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">#8B4513</item>
-        <item name="colorPrimaryDark">#654321</item>
-        <item name="colorAccent">#D2691E</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">true</item>
+        <item name="colorPrimaryDark">#2A1A0A</item>
+        <item name="colorAccent">#D4A860</item>
+        <item name="android:statusBarColor">#2A1A0A</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:alertDialogTheme">@style/ChessDialogTheme</item>
+        <item name="materialAlertDialogTheme">@style/ChessDialogTheme</item>
+        <item name="alertDialogTheme">@style/ChessDialogTheme</item>
+    </style>
+
+    <style name="ChessDialogTheme" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/dialog_background</item>
+        <item name="android:textColor">#F0E0C0</item>
+        <item name="android:textColorPrimary">#F0E0C0</item>
+        <item name="android:textColorSecondary">#C0A880</item>
+        <item name="android:textColorAlertDialogListItem">#F0E0C0</item>
+        <item name="colorOnSurface">#F0E0C0</item>
+        <item name="colorSurface">#3A2515</item>
+        <item name="colorAccent">#D4A860</item>
+        <item name="android:windowTitleStyle">@style/ChessDialogTitle</item>
+        <item name="buttonBarPositiveButtonStyle">@style/ChessDialogButton</item>
+        <item name="buttonBarNegativeButtonStyle">@style/ChessDialogButton</item>
+        <item name="buttonBarNeutralButtonStyle">@style/ChessDialogButton</item>
+    </style>
+
+    <style name="ChessDialogTitle" parent="TextAppearance.AppCompat.Title">
+        <item name="android:textColor">#D4A860</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:fontFamily">serif</item>
+    </style>
+
+    <style name="ChessDialogButton" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+        <item name="android:textColor">#D4A860</item>
+        <item name="android:fontFamily">serif</item>
+        <item name="android:textStyle">bold</item>
     </style>
 </resources>

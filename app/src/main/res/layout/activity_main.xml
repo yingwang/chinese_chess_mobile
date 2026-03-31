@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#E8D8C8"
+    android:background="#2A1A0A"
     android:fitsSystemWindows="true"
     tools:context=".MainActivity">
 
@@ -17,7 +17,6 @@
         android:layout_marginTop="12dp"
         android:layout_marginEnd="16dp"
         android:background="@drawable/info_panel_background"
-        android:elevation="4dp"
         android:orientation="vertical"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -36,9 +35,11 @@
                 android:layout_weight="1"
                 android:gravity="start"
                 android:text="模式: 玩家 vs AI"
-                android:textSize="13sp"
-                android:textColor="#5D4E37"
-                android:textStyle="bold" />
+                android:textSize="14sp"
+                android:textColor="#C0A880"
+                android:textStyle="bold"
+                android:fontFamily="serif"
+                android:letterSpacing="0.05" />
 
             <TextView
                 android:id="@+id/moveCountText"
@@ -47,9 +48,11 @@
                 android:layout_weight="1"
                 android:gravity="end"
                 android:text="回合: 0"
-                android:textSize="13sp"
-                android:textColor="#5D4E37"
-                android:textStyle="bold" />
+                android:textSize="14sp"
+                android:textColor="#C0A880"
+                android:textStyle="bold"
+                android:fontFamily="serif"
+                android:letterSpacing="0.05" />
         </LinearLayout>
 
         <LinearLayout
@@ -66,7 +69,7 @@
                 android:gravity="start"
                 android:text="红方: 0"
                 android:textSize="16sp"
-                android:textColor="#C82828"
+                android:textColor="#E05040"
                 android:textStyle="bold"
                 android:fontFamily="serif" />
 
@@ -78,7 +81,7 @@
                 android:gravity="center"
                 android:text="00:00"
                 android:textSize="16sp"
-                android:textColor="#5D4E37"
+                android:textColor="#D4A860"
                 android:textStyle="bold"
                 android:fontFamily="monospace" />
 
@@ -90,7 +93,7 @@
                 android:gravity="end"
                 android:text="黑方: 0"
                 android:textSize="16sp"
-                android:textColor="#1E1E1E"
+                android:textColor="#E0D0C0"
                 android:textStyle="bold"
                 android:fontFamily="serif" />
         </LinearLayout>
@@ -100,9 +103,9 @@
     <LinearLayout
         android:id="@+id/statusContainer"
         android:layout_width="0dp"
-        android:layout_height="70dp"
+        android:layout_height="60dp"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="4dp"
         android:layout_marginEnd="16dp"
         android:orientation="vertical"
         android:gravity="center"
@@ -129,14 +132,14 @@
                 android:layout_height="wrap_content"
                 android:gravity="center"
                 android:text="红方走棋"
-                android:textSize="26sp"
+                android:textSize="22sp"
                 android:textStyle="bold"
-                android:textColor="#5D4E37"
+                android:textColor="#F0E0C0"
                 android:fontFamily="serif"
                 android:shadowColor="#80000000"
                 android:shadowDx="1"
                 android:shadowDy="1"
-                android:shadowRadius="2" />
+                android:shadowRadius="3" />
         </LinearLayout>
 
         <!-- AI thinking dots -->
@@ -151,39 +154,38 @@
 
             <View
                 android:id="@+id/thinkingDot1"
-                android:layout_width="8dp"
-                android:layout_height="8dp"
+                android:layout_width="6dp"
+                android:layout_height="6dp"
                 android:layout_margin="3dp"
                 android:background="@drawable/thinking_dot" />
 
             <View
                 android:id="@+id/thinkingDot2"
-                android:layout_width="8dp"
-                android:layout_height="8dp"
+                android:layout_width="6dp"
+                android:layout_height="6dp"
                 android:layout_margin="3dp"
                 android:background="@drawable/thinking_dot" />
 
             <View
                 android:id="@+id/thinkingDot3"
-                android:layout_width="8dp"
-                android:layout_height="8dp"
+                android:layout_width="6dp"
+                android:layout_height="6dp"
                 android:layout_margin="3dp"
                 android:background="@drawable/thinking_dot" />
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Black captured pieces (pieces captured by Red, shown above board) -->
+    <!-- Black captured pieces (touching top of board) -->
     <HorizontalScrollView
         android:id="@+id/blackCapturedContainer"
         android:layout_width="0dp"
-        android:layout_height="24dp"
+        android:layout_height="26dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
-        android:layout_marginTop="4dp"
         android:scrollbars="none"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/statusContainer">
+        app:layout_constraintBottom_toTopOf="@+id/boardView">
 
         <LinearLayout
             android:id="@+id/blackCapturedPieces"
@@ -197,25 +199,28 @@
         android:id="@+id/boardView"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_margin="16dp"
-        app:layout_constraintBottom_toTopOf="@+id/redCapturedContainer"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="4dp"
+        app:layout_constraintBottom_toTopOf="@+id/moveHistoryContainer"
         app:layout_constraintDimensionRatio="0.9:1"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/blackCapturedContainer"
+        app:layout_constraintTop_toBottomOf="@+id/statusContainer"
         app:layout_constraintVertical_bias="0.0" />
 
-    <!-- Red captured pieces (pieces captured by Black, shown below board) -->
+    <!-- Red captured pieces (touching bottom of board) -->
     <HorizontalScrollView
         android:id="@+id/redCapturedContainer"
         android:layout_width="0dp"
-        android:layout_height="24dp"
+        android:layout_height="26dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
         android:scrollbars="none"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintBottom_toTopOf="@+id/moveHistoryContainer">
+        app:layout_constraintTop_toBottomOf="@+id/boardView">
 
         <LinearLayout
             android:id="@+id/redCapturedPieces"
@@ -228,12 +233,11 @@
     <ScrollView
         android:id="@+id/moveHistoryContainer"
         android:layout_width="0dp"
-        android:layout_height="70dp"
+        android:layout_height="100dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
-        android:layout_marginBottom="8dp"
+        android:layout_marginBottom="6dp"
         android:background="@drawable/info_panel_background"
-        android:elevation="2dp"
         app:layout_constraintBottom_toTopOf="@+id/buttonContainer"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
@@ -244,10 +248,13 @@
             android:layout_height="wrap_content"
             android:text="棋谱:"
             android:textSize="13sp"
-            android:textColor="#5D4E37"
-            android:fontFamily="monospace" />
+            android:textColor="#B0956A"
+            android:fontFamily="serif"
+            android:letterSpacing="0.02"
+            android:lineSpacingExtra="2dp" />
     </ScrollView>
 
+    <!-- Buttons row -->
     <LinearLayout
         android:id="@+id/buttonContainer"
         android:layout_width="0dp"
@@ -260,48 +267,62 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/newGameButton"
             android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:layout_marginEnd="8dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="6dp"
             android:layout_weight="1"
             android:text="新游戏"
-            android:textSize="18sp"
+            android:textSize="16sp"
             android:textStyle="bold"
-            android:textColor="#FFFFFF"
+            android:textColor="#F0E0C0"
             android:fontFamily="serif"
-            android:background="@drawable/button_selector"
-            android:elevation="4dp" />
+            android:letterSpacing="0.1"
+            android:background="@drawable/button_selector" />
 
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/hintButton"
             android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="6dp"
             android:layout_weight="1"
-            android:text="提示"
-            android:textSize="18sp"
+            android:text="提  示"
+            android:textSize="16sp"
             android:textStyle="bold"
-            android:textColor="#FFFFFF"
+            android:textColor="#F0E0C0"
             android:fontFamily="serif"
-            android:background="@drawable/button_selector"
-            android:elevation="4dp" />
+            android:letterSpacing="0.1"
+            android:background="@drawable/button_selector" />
 
-        <Button
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/undoButton"
             android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:layout_marginStart="8dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="6dp"
             android:layout_weight="1"
-            android:text="悔棋"
-            android:textSize="18sp"
+            android:text="悔  棋"
+            android:textSize="16sp"
             android:textStyle="bold"
-            android:textColor="#FFFFFF"
+            android:textColor="#F0E0C0"
             android:fontFamily="serif"
-            android:background="@drawable/button_selector"
-            android:elevation="4dp" />
+            android:letterSpacing="0.1"
+            android:background="@drawable/button_selector" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/moreButton"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:text="更  多"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#F0E0C0"
+            android:fontFamily="serif"
+            android:letterSpacing="0.1"
+            android:background="@drawable/button_selector" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

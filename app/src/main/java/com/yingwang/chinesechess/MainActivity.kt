@@ -39,6 +39,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var newGameButton: Button
     private lateinit var hintButton: Button
     private lateinit var undoButton: Button
+    private lateinit var moreButton: Button
+    private var isMuted = false
     private lateinit var gameController: GameController
     private lateinit var gameModeText: TextView
     private lateinit var redScoreText: TextView
@@ -64,7 +66,7 @@ class MainActivity : AppCompatActivity() {
 
         // Check for saved game and offer to resume
         if (gameController.hasSavedGame(this)) {
-            AlertDialog.Builder(this)
+            AlertDialog.Builder(this, R.style.ChessDialogTheme)
                 .setTitle("继续游戏")
                 .setMessage("发现上次未完成的棋局，是否继续？")
                 .setPositiveButton("继续") { _, _ ->
@@ -111,6 +113,11 @@ class MainActivity : AppCompatActivity() {
         moveHistoryText = findViewById(R.id.moveHistoryText)
         blackCapturedLayout = findViewById(R.id.blackCapturedPieces)
         redCapturedLayout = findViewById(R.id.redCapturedPieces)
+        moreButton = findViewById(R.id.moreButton)
+
+        moreButton.setOnClickListener {
+            showMoreDialog()
+        }
 
         newGameButton.setOnClickListener {
             showNewGameDialog()
@@ -122,7 +129,7 @@ class MainActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            AlertDialog.Builder(this)
+            AlertDialog.Builder(this, R.style.ChessDialogTheme)
                 .setTitle("确认悔棋")
                 .setMessage("确定要悔棋吗？")
                 .setPositiveButton("确定") { _, _ ->
@@ -144,9 +151,16 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     if (move != null) {
                         boardView.highlightMove(move)
-                        Toast.makeText(this, "建议: ${formatMove(move)}", Toast.LENGTH_LONG).show()
+                        AlertDialog.Builder(this, R.style.ChessDialogTheme)
+                            .setTitle("提示")
+                            .setMessage("建议走: ${formatMove(move)}")
+                            .setPositiveButton("知道了", null)
+                            .show()
                     } else {
-                        Toast.makeText(this, "无法提供建议", Toast.LENGTH_SHORT).show()
+                        AlertDialog.Builder(this, R.style.ChessDialogTheme)
+                            .setMessage("无法提供建议")
+                            .setPositiveButton("确定", null)
+                            .show()
                     }
                 }
             }
@@ -170,17 +184,36 @@ class MainActivity : AppCompatActivity() {
 
         gameController.onGameOver = { result ->
             runOnUiThread {
-                val message = when (result) {
+                val aiColor = gameController.getAIColor()
+                val playerColor = aiColor.opposite()
+                val isVsAI = gameController.getGameMode() == GameController.GameMode.PLAYER_VS_AI
+
+                val (message, ratingMsg) = when (result) {
                     is GameController.GameResult.Checkmate -> {
                         val winner = if (result.winner == PieceColor.RED) "红方" else "黑方"
-                        "$winner 获胜！"
+                        val baseMsg = "$winner 获胜！"
+                        if (isVsAI) {
+                            val score = if (result.winner == playerColor) 1.0 else 0.0
+                            val change = RatingSystem.recordGame(this, gameController.getDifficulty(), score)
+                            val stats = RatingSystem.getStats(this)
+                            val sign = if (change >= 0) "+" else ""
+                            baseMsg to "\n\n积分: ${stats.rating} ($sign$change)\n等级: ${stats.rankTitle}"
+                        } else baseMsg to ""
                     }
-                    GameController.GameResult.Stalemate -> "和棋！"
+                    GameController.GameResult.Stalemate -> {
+                        val baseMsg = "和棋！"
+                        if (isVsAI) {
+                            val change = RatingSystem.recordGame(this, gameController.getDifficulty(), 0.5)
+                            val stats = RatingSystem.getStats(this)
+                            val sign = if (change >= 0) "+" else ""
+                            baseMsg to "\n\n积分: ${stats.rating} ($sign$change)\n等级: ${stats.rankTitle}"
+                        } else baseMsg to ""
+                    }
                 }
 
-                AlertDialog.Builder(this)
+                AlertDialog.Builder(this, R.style.ChessDialogTheme)
                     .setTitle("游戏结束")
-                    .setMessage(message)
+                    .setMessage(message + ratingMsg)
                     .setPositiveButton("新游戏") { _, _ -> gameController.startNewGame() }
                     .setNegativeButton("取消", null)
                     .show()
@@ -292,16 +325,29 @@ class MainActivity : AppCompatActivity() {
     private fun updateCapturedRow(container: LinearLayout, pieces: List<Piece>) {
         container.removeAllViews()
         val sorted = pieces.sortedByDescending { it.type.baseValue }
+        val dp = resources.displayMetrics.density
+        val size = (22 * dp).toInt()
+
         for (piece in sorted) {
             val tv = TextView(this).apply {
                 text = piece.type.getDisplayName(piece.color)
-                textSize = 14f
+                textSize = 11f
                 typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
                 setTextColor(
                     if (piece.color == PieceColor.RED) Color.rgb(170, 20, 20)
                     else Color.rgb(40, 40, 40)
                 )
-                setPadding(4, 0, 4, 0)
+                gravity = android.view.Gravity.CENTER
+                layoutParams = LinearLayout.LayoutParams(size, size).apply {
+                    marginEnd = (2 * dp).toInt()
+                }
+                // Mini piece circle background
+                val bg = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.OVAL
+                    setColor(Color.rgb(235, 220, 195))
+                    setStroke((1 * dp).toInt(), Color.rgb(140, 110, 70))
+                }
+                background = bg
             }
             container.addView(tv)
         }
@@ -444,16 +490,16 @@ class MainActivity : AppCompatActivity() {
 
     private fun showNewGameDialog() {
         val modes = arrayOf(
-            "玩家 vs AI (红方)",
-            "玩家 vs AI (黑方)",
-            "玩家 vs 玩家",
-            "AI vs AI",
+            "我执红先手 vs AI",
+            "我执黑后手 vs AI",
+            "双人对战",
+            "AI vs AI (观战)",
             "残局练习"
         )
 
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(this, R.style.ChessDialogTheme)
             .setTitle("选择游戏模式")
-            .setItems(modes) { _, which ->
+            .setAdapter(styledListAdapter(modes)) { _, which ->
                 when (which) {
                     0 -> {
                         gameController.setGameMode(GameController.GameMode.PLAYER_VS_AI, PieceColor.BLACK)
@@ -483,9 +529,9 @@ class MainActivity : AppCompatActivity() {
     private fun showEndgameDialog() {
         val names = EndgamePositions.positions.map { "${it.name} - ${it.description}" }.toTypedArray()
 
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(this, R.style.ChessDialogTheme)
             .setTitle("选择残局")
-            .setItems(names) { _, which ->
+            .setAdapter(styledListAdapter(names)) { _, which ->
                 val position = EndgamePositions.positions[which]
                 gameController.startEndgamePosition(position)
                 updateGameModeDisplay()
@@ -494,7 +540,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showReplayControls() {
-        val dialog = AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this, R.style.ChessDialogTheme)
             .setTitle("棋谱回放")
             .setMessage(gameController.getReplayInfo())
             .setPositiveButton("下一步") { _, _ -> }
@@ -537,9 +583,9 @@ class MainActivity : AppCompatActivity() {
         val currentMode = gameController.getGameMode()
         val currentAIColor = gameController.getAIColor()
 
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(this, R.style.ChessDialogTheme)
             .setTitle("选择AI难度")
-            .setItems(difficulties) { _, which ->
+            .setAdapter(styledListAdapter(difficulties)) { _, which ->
                 val difficulty = when (which) {
                     0 -> AIDifficulty.BEGINNER
                     1 -> AIDifficulty.INTERMEDIATE
@@ -592,6 +638,10 @@ class MainActivity : AppCompatActivity() {
                 }
                 true
             }
+            R.id.action_export -> {
+                exportMoveHistory()
+                true
+            }
             R.id.action_about -> {
                 showAboutDialog()
                 true
@@ -600,8 +650,133 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun styledListAdapter(items: Array<String>): android.widget.ListAdapter {
+        return object : android.widget.ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, items) {
+            override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
+                val view = super.getView(position, convertView, parent)
+                (view as? TextView)?.apply {
+                    setTextColor(Color.rgb(240, 224, 192))
+                    textSize = 16f
+                    typeface = Typeface.create(Typeface.SERIF, Typeface.NORMAL)
+                    setBackgroundColor(Color.TRANSPARENT)
+                }
+                return view
+            }
+        }
+    }
+
+    private fun showMoreDialog() {
+        val muteLabel = if (isMuted) "取消静音" else "静音"
+        val items = arrayOf(
+            muteLabel,
+            "导出棋谱",
+            "我的战绩",
+            "残局练习",
+            "棋谱回放",
+            "关于"
+        )
+
+        AlertDialog.Builder(this, R.style.ChessDialogTheme)
+            .setTitle("更多")
+            .setAdapter(styledListAdapter(items)) { _, which ->
+                when (which) {
+                    0 -> { // 静音
+                        isMuted = !isMuted
+                        gameController.setSoundEnabled(!isMuted)
+                        if (isMuted) audioManager.pauseBackgroundMusic()
+                        else audioManager.startBackgroundMusic()
+                        Toast.makeText(this, if (isMuted) "已静音" else "已开启音效", Toast.LENGTH_SHORT).show()
+                    }
+                    1 -> exportMoveHistory()
+                    2 -> showStatsDialog()
+                    3 -> showEndgameDialog()
+                    4 -> { // 棋谱回放
+                        if (gameController.isInReplayMode()) {
+                            gameController.exitReplayMode()
+                            updateGameModeDisplay()
+                            Toast.makeText(this, "退出回放模式", Toast.LENGTH_SHORT).show()
+                        } else if (gameController.enterReplayMode()) {
+                            updateGameModeDisplay()
+                            showReplayControls()
+                        } else {
+                            Toast.makeText(this, "没有可回放的棋谱", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    5 -> showAboutDialog()
+                }
+            }
+            .show()
+    }
+
+    private fun showStatsDialog() {
+        val stats = RatingSystem.getStats(this)
+        AlertDialog.Builder(this, R.style.ChessDialogTheme)
+            .setTitle("我的战绩")
+            .setMessage("""
+                等级: ${stats.rankTitle}
+                积分: ${stats.rating}
+
+                总局数: ${stats.games}
+                胜: ${stats.wins}  负: ${stats.losses}  平: ${stats.draws}
+                胜率: ${stats.winRate}
+            """.trimIndent())
+            .setPositiveButton("确定", null)
+            .show()
+    }
+
+    private fun exportMoveHistory() {
+        val moves = gameController.getMoveHistory()
+        if (moves.isEmpty()) {
+            Toast.makeText(this, "没有棋谱可导出", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val sb = StringBuilder()
+        sb.appendLine("中国象棋棋谱")
+        sb.appendLine("日期: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date())}")
+        sb.appendLine("模式: ${gameModeText.text}")
+        sb.appendLine("回合数: ${moves.size}")
+        sb.appendLine("─".repeat(30))
+        sb.appendLine()
+
+        moves.forEachIndexed { index, move ->
+            val moveNum = index / 2 + 1
+            val formatted = formatMove(move)
+            if (index % 2 == 0) {
+                sb.append(String.format("%2d. %-10s", moveNum, formatted))
+            } else {
+                sb.appendLine(String.format("%-10s", formatted))
+            }
+        }
+        if (moves.size % 2 == 1) sb.appendLine()
+
+        sb.appendLine()
+        sb.appendLine("─".repeat(30))
+
+        val board = gameController.getCurrentBoard()
+        val result = when {
+            board.isCheckmate() -> {
+                val winner = if (board.currentPlayer == PieceColor.RED) "黑方" else "红方"
+                "$winner 获胜"
+            }
+            board.isStalemate() -> "和棋"
+            else -> "未结束"
+        }
+        sb.appendLine("结果: $result")
+
+        val text = sb.toString()
+
+        // Share via Android share sheet
+        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(android.content.Intent.EXTRA_SUBJECT, "中国象棋棋谱")
+            putExtra(android.content.Intent.EXTRA_TEXT, text)
+        }
+        startActivity(android.content.Intent.createChooser(intent, "导出棋谱"))
+    }
+
     private fun showAboutDialog() {
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(this, R.style.ChessDialogTheme)
             .setTitle("关于中国象棋")
             .setMessage("""
                 中国象棋 v1.0

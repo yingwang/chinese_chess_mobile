@@ -17,9 +17,9 @@ enum class PieceType(val chineseName: String, val baseValue: Int) {
             GENERAL -> if (color == PieceColor.RED) "帅" else "将"
             ADVISOR -> if (color == PieceColor.RED) "仕" else "士"
             ELEPHANT -> if (color == PieceColor.RED) "相" else "象"
-            HORSE -> "馬"
-            CHARIOT -> "車"
-            CANNON -> "砲"
+            HORSE -> if (color == PieceColor.RED) "馬" else "马"
+            CHARIOT -> if (color == PieceColor.RED) "車" else "车"
+            CANNON -> if (color == PieceColor.RED) "炮" else "砲"
             SOLDIER -> if (color == PieceColor.RED) "兵" else "卒"
         }
     }
