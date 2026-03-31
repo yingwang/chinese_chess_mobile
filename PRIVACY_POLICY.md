@@ -52,7 +52,7 @@ We may update our Privacy Policy from time to time. We will notify you of any ch
 ### Contact Us
 
 If you have any questions about this Privacy Policy, please contact us at:
-- Email: privacy@chinesechess.app
+- Email: nickelyw@gmail.com
 - GitHub: https://github.com/yingwang/chinese_chess_mobile
 
 ---
@@ -107,7 +107,7 @@ If you have any questions about this Privacy Policy, please contact us at:
 ### 联系我们
 
 如果您对本隐私政策有任何问题，请通过以下方式联系我们：
-- 电子邮件：privacy@chinesechess.app
+- 电子邮件：nickelyw@gmail.com
 - GitHub：https://github.com/yingwang/chinese_chess_mobile
 
 ---

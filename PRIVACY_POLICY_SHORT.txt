@@ -31,7 +31,7 @@ DATA SECURITY:
 Since we don't collect data, there's no risk to your privacy.
 
 CONTACT:
-Email: privacy@chinesechess.app
+Email: nickelyw@gmail.com
 GitHub: https://github.com/yingwang/chinese_chess_mobile
 
 Full privacy policy: https://github.com/yingwang/chinese_chess_mobile/blob/main/PRIVACY_POLICY.md
@@ -46,4 +46,4 @@ Full privacy policy: https://github.com/yingwang/chinese_chess_mobile/blob/main/
 
 适合所有年龄段，不收集儿童信息。
 
-联系方式：privacy@chinesechess.app
+联系方式：nickelyw@gmail.com
