@@ -57,6 +57,14 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Handle edge-to-edge insets for Android 15+
+        val rootView = findViewById<View>(android.R.id.content)
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(rootView) { v, insets ->
+            val systemBars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
+
         audioManager = GameAudioManager(this)
         gameController = GameController(this, AIDifficulty.PROFESSIONAL)
         initViews()
@@ -577,7 +585,8 @@ class MainActivity : AppCompatActivity() {
             "中级 (Intermediate)",
             "高级 (Advanced)",
             "专业 (Professional)",
-            "大师 (Master)"
+            "大师 (Master)",
+            "AI 神经网络 (ML)"
         )
 
         val currentMode = gameController.getGameMode()
@@ -592,6 +601,7 @@ class MainActivity : AppCompatActivity() {
                     2 -> AIDifficulty.ADVANCED
                     3 -> AIDifficulty.PROFESSIONAL
                     4 -> AIDifficulty.MASTER
+                    5 -> AIDifficulty.ML
                     else -> AIDifficulty.PROFESSIONAL
                 }
 

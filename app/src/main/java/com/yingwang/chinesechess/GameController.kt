@@ -2,6 +2,7 @@ package com.yingwang.chinesechess
 
 import android.content.Context
 import com.yingwang.chinesechess.ai.ChessAI
+import com.yingwang.chinesechess.ai.ml.MLChessAI
 import com.yingwang.chinesechess.model.*
 import kotlinx.coroutines.*
 import org.json.JSONArray
@@ -21,7 +22,8 @@ class GameController(
         INTERMEDIATE(3, 2000, 2),
         ADVANCED(4, 3000, 3),
         PROFESSIONAL(5, 5000, 4),
-        MASTER(7, 10000, 5)
+        MASTER(7, 10000, 5),
+        ML(0, 0, 0)  // Uses neural network MCTS instead of alpha-beta
     }
 
     enum class GameMode {
@@ -40,6 +42,9 @@ class GameController(
         timeLimit = difficulty.timeLimit,
         quiescenceDepth = difficulty.quiescenceDepth
     )
+    private val mlAI: MLChessAI? = if (difficulty == AIDifficulty.ML) {
+        MLChessAI(context, numSimulations = 200, cPuct = 1.5f)
+    } else null
 
     private var moveHistory = mutableListOf<Move>()
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -182,7 +187,11 @@ class GameController(
 
         coroutineScope.launch {
             try {
-                val move = ai.findBestMove(board, moveHistory)
+                val move = if (mlAI != null) {
+                    mlAI.findBestMove(board, moveHistory)
+                } else {
+                    ai.findBestMove(board, moveHistory)
+                }
 
                 if (move != null) {
                     // Play appropriate sound
@@ -524,6 +533,7 @@ class GameController(
     fun destroy() {
         coroutineScope.cancel()
         soundManager.release()
+        mlAI?.close()
     }
 
     fun setSoundEnabled(enabled: Boolean) {

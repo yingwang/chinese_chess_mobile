@@ -11,8 +11,17 @@ android {
         applicationId = "com.yingwang.chinesechess"
         minSdk = 24
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 4
+        versionName = "2.0.0"
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file("../chess-release.keystore")
+            storePassword = "chinesechess2024"
+            keyAlias = "chess"
+            keyPassword = "chinesechess2024"
+        }
     }
 
     buildTypes {
@@ -22,6 +31,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -37,13 +47,21 @@ android {
     buildFeatures {
         viewBinding = true
     }
+
+    androidResources {
+        noCompress += "tflite"
+    }
 }
 
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("androidx.activity:activity-ktx:1.8.2")
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
+    // TensorFlow Lite for ML chess engine
+    implementation("org.tensorflow:tensorflow-lite:2.14.0")
 }
