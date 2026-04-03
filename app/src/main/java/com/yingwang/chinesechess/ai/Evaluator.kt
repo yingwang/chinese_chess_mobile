@@ -113,25 +113,31 @@ object Evaluator {
         }
         if (board.isStalemate()) return 0
 
+        // Cache piece lists once for the entire evaluation
+        val allPieces = board.getAllPieces()
+        val redPieces = allPieces.filter { it.color == PieceColor.RED }
+        val blackPieces = allPieces.filter { it.color == PieceColor.BLACK }
+        val totalPieceCount = allPieces.size
+
         var score = 0
 
         // Material + positional (piece-square tables)
-        for (piece in board.getAllPieces()) {
+        for (piece in allPieces) {
             val value = getPieceValue(piece)
             score += if (piece.color == PieceColor.RED) value else -value
         }
 
-        // King safety
-        score += evaluateKingSafety(board)
+        // King safety (using cached lists)
+        score += evaluateKingSafetyCached(redPieces, blackPieces)
 
-        // Piece coordination and threats
-        score += evaluateThreats(board)
+        // Piece coordination and threats (using cached lists)
+        score += evaluateThreatsCached(allPieces, totalPieceCount)
 
-        // Chariot on open file bonus
-        score += evaluateChariotActivity(board)
+        // Chariot on open file bonus (using cached lists)
+        score += evaluateChariotActivityCached(allPieces, redPieces, blackPieces)
 
-        // Connected horses bonus
-        score += evaluateHorseCoordination(board)
+        // Connected horses bonus (using cached lists)
+        score += evaluateHorseCoordinationCached(redPieces, blackPieces)
 
         // Check bonus (tempo advantage)
         if (board.isInCheck(PieceColor.RED)) score -= 30
@@ -160,28 +166,23 @@ object Evaluator {
 
     /**
      * King safety: penalize exposed king (missing advisors/elephants)
+     * Uses pre-cached piece lists to avoid repeated board scans.
      */
-    private fun evaluateKingSafety(board: Board): Int {
+    private fun evaluateKingSafetyCached(redPieces: List<Piece>, blackPieces: List<Piece>): Int {
         var score = 0
 
-        for (color in listOf(PieceColor.RED, PieceColor.BLACK)) {
-            val pieces = board.getPiecesByColor(color)
+        for ((color, pieces) in listOf(PieceColor.RED to redPieces, PieceColor.BLACK to blackPieces)) {
             val advisorCount = pieces.count { it.type == PieceType.ADVISOR }
             val elephantCount = pieces.count { it.type == PieceType.ELEPHANT }
 
-            // Penalize missing defenders
             var safety = 0
             if (advisorCount == 0) safety -= 40
             else if (advisorCount == 1) safety -= 15
             if (elephantCount == 0) safety -= 25
             else if (elephantCount == 1) safety -= 10
 
-            // Bonus for general staying in center of palace
             val general = pieces.find { it.type == PieceType.GENERAL }
-            if (general != null) {
-                val col = general.position.col
-                if (col == 4) safety += 10 // center column is safest
-            }
+            if (general != null && general.position.col == 4) safety += 10
 
             score += if (color == PieceColor.RED) safety else -safety
         }
@@ -190,52 +191,44 @@ object Evaluator {
     }
 
     /**
-     * Evaluate threats: pieces attacking opponent's territory get bonus
+     * Evaluate threats using pre-cached piece list.
      */
-    private fun evaluateThreats(board: Board): Int {
+    private fun evaluateThreatsCached(allPieces: List<Piece>, totalPieceCount: Int): Int {
         var score = 0
 
-        for (piece in board.getAllPieces()) {
+        for (piece in allPieces) {
             val row = piece.position.row
             val isRed = piece.color == PieceColor.RED
 
             when (piece.type) {
                 PieceType.SOLDIER -> {
-                    // Crossed-river soldier is much more valuable
                     val crossed = if (isRed) row <= 4 else row >= 5
                     if (crossed) {
-                        val bonus = 20
-                        score += if (isRed) bonus else -bonus
-                        // Center crossed soldier even more valuable
+                        score += if (isRed) 20 else -20
                         if (piece.position.col in 3..5) {
                             score += if (isRed) 15 else -15
                         }
                     }
                 }
                 PieceType.HORSE -> {
-                    // Horse in opponent's territory
                     val inEnemyTerritory = if (isRed) row <= 4 else row >= 5
                     if (inEnemyTerritory) {
                         score += if (isRed) 15 else -15
                     }
-                    // Horse near opponent's general (卧槽马)
                     val nearGeneral = if (isRed) row <= 2 else row >= 7
                     if (nearGeneral && piece.position.col in 2..6) {
                         score += if (isRed) 25 else -25
                     }
                 }
                 PieceType.CHARIOT -> {
-                    // Chariot penetration into opponent's base rows
                     val deepPenetration = if (isRed) row <= 2 else row >= 7
                     if (deepPenetration) {
                         score += if (isRed) 20 else -20
                     }
                 }
                 PieceType.CANNON -> {
-                    // Cannon value decreases in endgame (fewer pieces to jump over)
-                    val totalPieces = board.getAllPieces().size
-                    if (totalPieces <= 10) {
-                        score += if (isRed) -30 else 30 // cannon less useful
+                    if (totalPieceCount <= 10) {
+                        score += if (isRed) -30 else 30
                     }
                 }
                 else -> {}
@@ -246,30 +239,33 @@ object Evaluator {
     }
 
     /**
-     * Chariot on open file (no own pawns blocking) gets bonus
+     * Chariot on open file bonus using pre-cached piece lists.
      */
-    private fun evaluateChariotActivity(board: Board): Int {
+    private fun evaluateChariotActivityCached(
+        allPieces: List<Piece>,
+        redPieces: List<Piece>,
+        blackPieces: List<Piece>
+    ): Int {
         var score = 0
 
-        for (piece in board.getAllPieces()) {
+        for (piece in allPieces) {
             if (piece.type != PieceType.CHARIOT) continue
 
             val col = piece.position.col
             val isRed = piece.color == PieceColor.RED
+            val ownPieces = if (isRed) redPieces else blackPieces
 
-            // Count own soldiers on same column
-            val ownSoldiersOnFile = board.getPiecesByColor(piece.color).count {
+            val ownSoldiersOnFile = ownPieces.count {
                 it.type == PieceType.SOLDIER && it.position.col == col
             }
 
             if (ownSoldiersOnFile == 0) {
-                score += if (isRed) 15 else -15 // open file bonus
+                score += if (isRed) 15 else -15
             }
 
-            // Bottom rank chariot (haven't moved) penalty
             val onHomeRank = if (isRed) piece.position.row == 9 else piece.position.row == 0
             if (onHomeRank) {
-                score += if (isRed) -20 else 20 // penalty for undeveloped chariot
+                score += if (isRed) -20 else 20
             }
         }
 
@@ -277,18 +273,17 @@ object Evaluator {
     }
 
     /**
-     * Connected/protected horses get bonus
+     * Connected horses bonus using pre-cached piece lists.
      */
-    private fun evaluateHorseCoordination(board: Board): Int {
+    private fun evaluateHorseCoordinationCached(redPieces: List<Piece>, blackPieces: List<Piece>): Int {
         var score = 0
 
-        for (color in listOf(PieceColor.RED, PieceColor.BLACK)) {
-            val horses = board.getPiecesByColor(color).filter { it.type == PieceType.HORSE }
+        for ((color, pieces) in listOf(PieceColor.RED to redPieces, PieceColor.BLACK to blackPieces)) {
+            val horses = pieces.filter { it.type == PieceType.HORSE }
             if (horses.size == 2) {
                 val h1 = horses[0].position
                 val h2 = horses[1].position
                 val dist = Math.abs(h1.row - h2.row) + Math.abs(h1.col - h2.col)
-                // Connected horses (close together) can support each other
                 if (dist in 2..4) {
                     score += if (color == PieceColor.RED) 10 else -10
                 }

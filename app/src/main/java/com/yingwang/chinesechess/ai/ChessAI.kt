@@ -26,8 +26,8 @@ class ChessAI(
     private var startTime = 0L
     private var shouldStop = false
 
-    // Killer moves: 2 per depth level
-    private val killerMoves = Array(30) { arrayOfNulls<Move>(2) }
+    // Killer moves: 2 per depth level (sized for maxDepth + check extensions + quiescence)
+    private val killerMoves = Array(50) { arrayOfNulls<Move>(2) }
 
     // History heuristic: [color][fromRow*9+fromCol][toRow*9+toCol]
     private val historyTable = Array(2) { Array(90) { IntArray(90) } }
@@ -38,6 +38,9 @@ class ChessAI(
         private const val NULL_MOVE_REDUCTION = 2
         private const val LMR_THRESHOLD = 4 // reduce after this many moves
         private const val ASPIRATION_WINDOW = 50
+        private const val FUTILITY_MARGIN_DEPTH1 = 200
+        private const val FUTILITY_MARGIN_DEPTH2 = 400
+        private const val CHECK_EXTENSION = 1
     }
 
     suspend fun findBestMove(board: Board, moveHistory: List<Move> = emptyList()): Move? = withContext(Dispatchers.Default) {
@@ -169,8 +172,12 @@ class ChessAI(
             }
         }
 
+        // Check extension: extend search when in check
+        val inCheckNow = board.isInCheck(board.currentPlayer)
+        val effectiveDepth = if (inCheckNow) depth + CHECK_EXTENSION else depth
+
         // Leaf node
-        if (depth == 0) {
+        if (effectiveDepth <= 0) {
             return if (quiescenceDepth == 0) Evaluator.evaluate(board)
             else quiescenceSearch(board, alpha, beta, maximizing, quiescenceDepth)
         }
@@ -181,25 +188,32 @@ class ChessAI(
         }
         if (board.isStalemate()) return 0
 
+        // Futility pruning: at shallow depths, skip moves that can't possibly raise alpha
+        if (!inCheckNow && effectiveDepth <= 2 && Math.abs(alpha) < CHECKMATE_SCORE - 100) {
+            val staticEval = Evaluator.evaluate(board)
+            val margin = if (effectiveDepth == 1) FUTILITY_MARGIN_DEPTH1 else FUTILITY_MARGIN_DEPTH2
+            if (maximizing && staticEval + margin <= alpha) return staticEval
+            if (!maximizing && staticEval - margin >= beta) return staticEval
+        }
+
         // Null move pruning: skip our turn and see if opponent can still not beat beta
         // Don't do null move when in check or at shallow depth
-        if (allowNullMove && depth >= 3 && !board.isInCheck(board.currentPlayer)) {
+        if (allowNullMove && effectiveDepth >= 3 && !inCheckNow) {
             val nullBoard = board.copy()
             nullBoard.currentPlayer = board.currentPlayer.opposite()
-            val nullScore = alphaBeta(nullBoard, depth - 1 - NULL_MOVE_REDUCTION, alpha, beta, !maximizing, false)
+            val nullScore = alphaBeta(nullBoard, effectiveDepth - 1 - NULL_MOVE_REDUCTION, alpha, beta, !maximizing, false)
 
             if (maximizing && nullScore >= beta) return beta
             if (!maximizing && nullScore <= alpha) return alpha
         }
 
-        val moves = orderMoves(board, board.getAllLegalMoves(), ttEntry?.bestMove, depth)
+        val moves = orderMoves(board, board.getAllLegalMoves(), ttEntry?.bestMove, effectiveDepth)
         if (moves.isEmpty()) return Evaluator.evaluate(board)
 
         var currentAlpha = alpha
         var currentBeta = beta
         var bestScore: Int
         var bestMove: Move? = null
-        val inCheck = board.isInCheck(board.currentPlayer)
 
         if (maximizing) {
             bestScore = Int.MIN_VALUE
@@ -211,16 +225,16 @@ class ChessAI(
 
                 // Late move reduction: search late non-capture moves at reduced depth
                 var reduction = 0
-                if (moveIndex >= LMR_THRESHOLD && depth >= 3 &&
-                    !inCheck && move.capturedPiece == null) {
+                if (moveIndex >= LMR_THRESHOLD && effectiveDepth >= 3 &&
+                    !inCheckNow && move.capturedPiece == null) {
                     reduction = 1
                 }
 
-                var score = alphaBeta(newBoard, depth - 1 - reduction, currentAlpha, currentBeta, false, true)
+                var score = alphaBeta(newBoard, effectiveDepth - 1 - reduction, currentAlpha, currentBeta, false, true)
 
                 // Re-search at full depth if reduced search beats alpha
                 if (reduction > 0 && score > currentAlpha) {
-                    score = alphaBeta(newBoard, depth - 1, currentAlpha, currentBeta, false, true)
+                    score = alphaBeta(newBoard, effectiveDepth - 1, currentAlpha, currentBeta, false, true)
                 }
 
                 if (score > bestScore) {
@@ -232,10 +246,10 @@ class ChessAI(
                 if (currentBeta <= currentAlpha) {
                     // Beta cutoff — update killer and history
                     if (move.capturedPiece == null) {
-                        updateKillerMoves(depth, move)
-                        updateHistory(move, depth)
+                        updateKillerMoves(effectiveDepth, move)
+                        updateHistory(move, effectiveDepth)
                     }
-                    transpositionTable.store(hash, depth, bestScore, TranspositionTable.EntryType.LOWER_BOUND, bestMove)
+                    transpositionTable.store(hash, effectiveDepth, bestScore, TranspositionTable.EntryType.LOWER_BOUND, bestMove)
                     return bestScore
                 }
             }
@@ -248,15 +262,15 @@ class ChessAI(
                 newBoard.currentPlayer = board.currentPlayer.opposite()
 
                 var reduction = 0
-                if (moveIndex >= LMR_THRESHOLD && depth >= 3 &&
-                    !inCheck && move.capturedPiece == null) {
+                if (moveIndex >= LMR_THRESHOLD && effectiveDepth >= 3 &&
+                    !inCheckNow && move.capturedPiece == null) {
                     reduction = 1
                 }
 
-                var score = alphaBeta(newBoard, depth - 1 - reduction, currentAlpha, currentBeta, true, true)
+                var score = alphaBeta(newBoard, effectiveDepth - 1 - reduction, currentAlpha, currentBeta, true, true)
 
                 if (reduction > 0 && score < currentBeta) {
-                    score = alphaBeta(newBoard, depth - 1, currentAlpha, currentBeta, true, true)
+                    score = alphaBeta(newBoard, effectiveDepth - 1, currentAlpha, currentBeta, true, true)
                 }
 
                 if (score < bestScore) {
@@ -267,16 +281,16 @@ class ChessAI(
                 currentBeta = minOf(currentBeta, score)
                 if (currentBeta <= currentAlpha) {
                     if (move.capturedPiece == null) {
-                        updateKillerMoves(depth, move)
-                        updateHistory(move, depth)
+                        updateKillerMoves(effectiveDepth, move)
+                        updateHistory(move, effectiveDepth)
                     }
-                    transpositionTable.store(hash, depth, bestScore, TranspositionTable.EntryType.UPPER_BOUND, bestMove)
+                    transpositionTable.store(hash, effectiveDepth, bestScore, TranspositionTable.EntryType.UPPER_BOUND, bestMove)
                     return bestScore
                 }
             }
         }
 
-        transpositionTable.store(hash, depth, bestScore, TranspositionTable.EntryType.EXACT, bestMove)
+        transpositionTable.store(hash, effectiveDepth, bestScore, TranspositionTable.EntryType.EXACT, bestMove)
         return bestScore
     }
 

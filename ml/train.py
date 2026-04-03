@@ -301,7 +301,12 @@ class AlphaZeroTrainer:
 
     def __init__(self, config: AlphaZeroConfig) -> None:
         self.config = config
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        if torch.cuda.is_available():
+            self.device = torch.device('cuda')
+        elif torch.backends.mps.is_available():
+            self.device = torch.device('mps')
+        else:
+            self.device = torch.device('cpu')
 
         # Create models
         self.current_model = create_model(
@@ -338,9 +343,9 @@ class AlphaZeroTrainer:
             t0 = time.time()
             logger.info("=== Iteration %d/%d ===", iteration, iterations)
 
-            # --- 1. Self-play ---
+            # --- 1. Self-play (on CPU — single-sample inference doesn't benefit from GPU) ---
             logger.info("Self-play: generating %d games...", cfg.games_per_iteration)
-            self.current_model.eval()
+            self.current_model.cpu().eval()
             sp_manager = SelfPlayManager(
                 model=self.current_model,
                 num_simulations=cfg.num_simulations,
@@ -366,7 +371,8 @@ class AlphaZeroTrainer:
             self.replay_buffer.add(examples)
             logger.info("Replay buffer size: %d", len(self.replay_buffer))
 
-            # --- 3. Train ---
+            # --- 3. Train (move model back to accelerator for batch training) ---
+            self.current_model.to(self.device)
             logger.info("Training for %d epochs...", cfg.epochs_per_iteration)
             for epoch in range(1, cfg.epochs_per_iteration + 1):
                 losses = self.trainer.train_epoch(self.replay_buffer)
@@ -380,14 +386,19 @@ class AlphaZeroTrainer:
             # --- 4. Evaluate and possibly accept new model ---
             if iteration % cfg.eval_interval == 0:
                 logger.info("Evaluating new model vs best (%d games)...", cfg.eval_games)
+                # Eval on CPU to avoid device mismatch in MCTS
+                self.current_model.cpu().eval()
+                self.best_model.cpu().eval()
                 new_wins, old_wins, eval_draws = evaluate_models(
                     model_new=self.current_model,
                     model_old=self.best_model,
                     num_games=cfg.eval_games,
                     num_simulations=cfg.eval_simulations,
                     c_puct=cfg.c_puct,
-                    device=self.device,
+                    device=torch.device('cpu'),
                 )
+                self.current_model.to(self.device)
+                self.best_model.to(self.device)
                 total_decisive = new_wins + old_wins
                 win_rate = new_wins / max(1, total_decisive)
                 logger.info(

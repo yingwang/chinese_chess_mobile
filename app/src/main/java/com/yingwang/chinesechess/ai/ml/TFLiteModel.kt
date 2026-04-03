@@ -49,10 +49,18 @@ class TFLiteModel(context: Context, modelFileName: String = "chess_model.tflite"
      *         value is a scalar in [-1, 1].
      */
     fun predict(boardTensor: FloatArray): Pair<FloatArray, Float> {
-        // Wrap input as [1, 15, 10, 9]
-        val inputBuffer = ByteBuffer.allocateDirect(boardTensor.size * 4).apply {
+        // Convert CHW (15,10,9) → NHWC (1,10,9,15) for TFLite
+        val nhwc = FloatArray(boardTensor.size)
+        for (c in 0 until 15) {
+            for (h in 0 until 10) {
+                for (w in 0 until 9) {
+                    nhwc[h * 9 * 15 + w * 15 + c] = boardTensor[c * 10 * 9 + h * 9 + w]
+                }
+            }
+        }
+        val inputBuffer = ByteBuffer.allocateDirect(nhwc.size * 4).apply {
             order(ByteOrder.nativeOrder())
-            for (v in boardTensor) putFloat(v)
+            for (v in nhwc) putFloat(v)
             rewind()
         }
 

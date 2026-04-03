@@ -4,8 +4,6 @@
         <item name="colorPrimary">#8B4513</item>
         <item name="colorPrimaryDark">#2A1A0A</item>
         <item name="colorAccent">#D4A860</item>
-        <item name="android:statusBarColor">#2A1A0A</item>
-        <item name="android:windowLightStatusBar">false</item>
         <item name="android:alertDialogTheme">@style/ChessDialogTheme</item>
         <item name="materialAlertDialogTheme">@style/ChessDialogTheme</item>
         <item name="alertDialogTheme">@style/ChessDialogTheme</item>

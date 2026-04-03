@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#2A1A0A"
-    android:fitsSystemWindows="true"
+    
     tools:context=".MainActivity">
 
     <!-- Game Info Panel -->

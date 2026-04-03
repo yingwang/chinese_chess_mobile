@@ -3,7 +3,8 @@ package com.yingwang.chinesechess.ai
 import com.yingwang.chinesechess.model.Move
 
 /**
- * Transposition table for caching board evaluations
+ * Transposition table for caching board evaluations.
+ * Uses array-based storage with depth-preferred replacement policy.
  */
 class TranspositionTable(private val maxSize: Int = 1_000_000) {
 
@@ -14,32 +15,51 @@ class TranspositionTable(private val maxSize: Int = 1_000_000) {
     }
 
     data class Entry(
+        val hash: Long,
         val depth: Int,
         val score: Int,
         val type: EntryType,
         val bestMove: Move?
     )
 
-    private val table = mutableMapOf<Long, Entry>()
+    // Two-bucket table: each slot has a depth-preferred and an always-replace entry
+    private val depthTable = arrayOfNulls<Entry>(maxSize)
+    private val alwaysTable = arrayOfNulls<Entry>(maxSize)
+    private var entryCount = 0
+
+    private fun index(hash: Long): Int = (hash.ushr(1) % maxSize).toInt()
 
     fun store(hash: Long, depth: Int, score: Int, type: EntryType, bestMove: Move?) {
-        val existing = table[hash]
-        // Replace if: no existing entry, or new search is at same or greater depth
-        if (existing == null || depth >= existing.depth) {
-            if (table.size >= maxSize && existing == null) {
-                // Table full and inserting new key: remove a random entry
-                val keyToRemove = table.keys.first()
-                table.remove(keyToRemove)
+        val idx = index(hash)
+        val entry = Entry(hash, depth, score, type, bestMove)
+
+        val existing = depthTable[idx]
+        if (existing == null || existing.hash == hash || depth >= existing.depth) {
+            // Depth-preferred: replace if same position, deeper, or empty
+            if (existing != null && existing.hash != hash) {
+                // Demote old entry to always-replace bucket
+                alwaysTable[idx] = existing
             }
-            table[hash] = Entry(depth, score, type, bestMove)
+            depthTable[idx] = entry
+        } else {
+            // Doesn't qualify for depth bucket, use always-replace
+            alwaysTable[idx] = entry
         }
+        entryCount++
     }
 
-    fun probe(hash: Long): Entry? = table[hash]
+    fun probe(hash: Long): Entry? {
+        val idx = index(hash)
+        depthTable[idx]?.let { if (it.hash == hash) return it }
+        alwaysTable[idx]?.let { if (it.hash == hash) return it }
+        return null
+    }
 
     fun clear() {
-        table.clear()
+        depthTable.fill(null)
+        alwaysTable.fill(null)
+        entryCount = 0
     }
 
-    fun size(): Int = table.size
+    fun size(): Int = entryCount
 }
