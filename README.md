@@ -13,6 +13,7 @@
 <p align="center">
   <strong><a href="https://yingwang.github.io/chinese_chess_mobile/">Website</a></strong> ·
   <strong><a href="https://play.google.com/store/apps/details?id=com.yingwang.chinesechess">Google Play</a></strong> ·
+  <strong><a href="https://yingwang.github.io/chinese_chess/">Web Version / 网页版</a></strong> ·
   <strong><a href="PRIVACY_POLICY.md">Privacy Policy</a></strong>
 </p>
 
