@@ -191,6 +191,6 @@ This app does not collect any personal data. No internet connection required. No
 
 ## Credits / 致谢
 
-Built with Kotlin and Android Canvas. Inspired by [yingwang/chinese-chess](https://github.com/yingwang/chinese-chess) (web version).
+Built with Kotlin and Android Canvas. Also available as a [web version](https://github.com/yingwang/chinese-chess).
 
-使用 Kotlin 和 Android Canvas 构建。灵感来源于 [yingwang/chinese-chess](https://github.com/yingwang/chinese-chess)（网页版）。
+使用 Kotlin 和 Android Canvas 构建。另有[网页版](https://github.com/yingwang/chinese-chess)。
