@@ -21,7 +21,7 @@ A feature-rich Chinese Chess (Xiangqi / 象棋) game for Android with a strong A
 ## Features
 
 ### Game Modes
-- **Player vs AI** — 5 difficulty levels from beginner to master
+- **Player vs AI** — 5 difficulty levels from beginner to master + neural network AI
 - **Player vs Player** — Same-device local multiplayer
 - **AI vs AI** — Watch the engine play itself
 - **Endgame Puzzles** — 8 classic endgame positions (重炮杀, 铁门栓, 天地炮, 马后炮, etc.)
@@ -53,6 +53,22 @@ The AI uses modern game engine techniques:
 | Advanced | 4 | 3s | Depth 3 |
 | Professional | 5 | 5s | Depth 4 |
 | Master | 7 | 10s | Depth 5 |
+
+### Neural Network AI
+
+An AlphaZero-style neural network engine is available as an additional difficulty level:
+
+| Component | Details |
+|-----------|---------|
+| Architecture | ResNet (128 filters, 6 residual blocks) with dual policy + value heads |
+| Input | 15 feature planes (10x9): 7 per side + current player |
+| Policy Head | 2086 possible moves |
+| Value Head | Position evaluation in [-1, 1] |
+| Search | MCTS with 200 simulations |
+| Training Data | 40,000+ master game records (supervised learning) |
+| Inference | TensorFlow Lite (float16) on device |
+
+Training notebooks for Google Colab and Kaggle are in the `ml/` directory.
 
 #### Evaluation Function
 
@@ -125,7 +141,12 @@ app/src/main/java/com/yingwang/chinesechess/
 │   ├── Evaluator.kt          # Position evaluation
 │   ├── TranspositionTable.kt # TT with depth-preferred replacement
 │   ├── ZobristHash.kt        # Zobrist position hashing
-│   └── OpeningBook.kt        # Opening book (30+ lines)
+│   ├── OpeningBook.kt        # Opening book (30+ lines)
+│   └── ml/                   # Neural network AI
+│       ├── MLChessAI.kt      # MCTS + neural network search
+│       ├── TFLiteModel.kt    # TFLite inference wrapper
+│       ├── MoveEncoding.kt   # Board/move encoding (2086 actions)
+│       └── MCTSNode.kt       # Monte Carlo tree search nodes
 ├── ui/
 │   └── BoardView.kt          # Custom Canvas board rendering
 ├── audio/
@@ -145,7 +166,7 @@ app/src/main/java/com/yingwang/chinesechess/
 | Elephant | 相 | 象 | 2 steps diagonal, blocked by eye, no river crossing |
 | Horse | 馬 | 马 | L-shape, blocked by adjacent piece |
 | Chariot | 車 | 车 | Any distance orthogonal |
-| Cannon | 砲 | 炮 | Moves like chariot, captures by jumping over 1 piece |
+| Cannon | 炮 | 炮 | Moves like chariot, captures by jumping over 1 piece |
 | Soldier | 兵 | 卒 | Forward only; forward + sideways after crossing river |
 
 Special: **Flying General** rule — generals cannot face each other on an open file.
