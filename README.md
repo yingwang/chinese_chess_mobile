@@ -189,7 +189,7 @@ This app does not collect any personal data. No internet connection required. No
 
 [GPL-3.0](LICENSE)
 
-## Credits / 致谢
+## About / 关于
 
 Built with Kotlin and Android Canvas. Also available as a [web version](https://github.com/yingwang/chinese-chess).
 
