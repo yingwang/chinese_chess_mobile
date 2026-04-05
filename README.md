@@ -70,7 +70,7 @@ An AlphaZero-style neural network engine, available as an additional difficulty 
 | Policy Head / 策略头 | 2086 possible moves / 2086 种可能走法 |
 | Value Head / 价值头 | Position evaluation in [-1, 1] / 局面评估值 [-1, 1] |
 | Search / 搜索 | MCTS with 200 simulations / 蒙特卡洛树搜索，200 次模拟 |
-| Training Data / 训练数据 | 40,000+ master game records (supervised learning) / 4 万+ 大师棋谱（监督学习）|
+| Training Data / 训练数据 | 40,000+ master game records (supervised) + self-play RL (20 iterations) / 4 万+ 大师棋谱（监督学习）+ 自我对弈强化学习（20 轮）|
 | Inference / 推理 | TensorFlow Lite (float16) on device / 设备端 TensorFlow Lite（float16）|
 
 Training notebooks for Google Colab and Kaggle are in the `ml/` directory.
@@ -96,6 +96,12 @@ Training notebooks for Google Colab and Kaggle are in the `ml/` directory.
 - Smooth 200ms piece movement animation / 流畅的 200ms 走子动画
 - Haptic feedback on selection and placement / 选子和落子时触觉反馈
 - Pulsing dots AI thinking indicator / AI 思考脉冲点指示器
+
+### Rules Enforcement / 规则检测
+
+- **Perpetual check detection / 长将检测** — Perpetual check (same position 3 times with check) results in loss for the checking side / 同一局面出现3次且处于将军状态，长将方判负
+- **Threefold repetition draw / 三次重复和棋** — Same position 3 times without check is a draw / 同一局面出现3次（无将军）判和棋
+- **AI avoidance / AI 规避** — AI proactively avoids moves that would cause repetition penalties / AI 主动规避会导致判负的重复走法
 
 ### Additional Features / 其他功能
 
