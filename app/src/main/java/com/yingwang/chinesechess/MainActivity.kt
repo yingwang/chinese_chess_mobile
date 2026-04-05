@@ -208,8 +208,28 @@ class MainActivity : AppCompatActivity() {
                             baseMsg to "\n\n积分: ${stats.rating} ($sign$change)\n等级: ${stats.rankTitle}"
                         } else baseMsg to ""
                     }
+                    is GameController.GameResult.PerpetualCheck -> {
+                        val winner = if (result.winner == PieceColor.RED) "红方" else "黑方"
+                        val baseMsg = "长将判负！$winner 获胜！"
+                        if (isVsAI) {
+                            val score = if (result.winner == playerColor) 1.0 else 0.0
+                            val change = RatingSystem.recordGame(this, gameController.getDifficulty(), score)
+                            val stats = RatingSystem.getStats(this)
+                            val sign = if (change >= 0) "+" else ""
+                            baseMsg to "\n\n积分: ${stats.rating} ($sign$change)\n等级: ${stats.rankTitle}"
+                        } else baseMsg to ""
+                    }
                     GameController.GameResult.Stalemate -> {
                         val baseMsg = "和棋！"
+                        if (isVsAI) {
+                            val change = RatingSystem.recordGame(this, gameController.getDifficulty(), 0.5)
+                            val stats = RatingSystem.getStats(this)
+                            val sign = if (change >= 0) "+" else ""
+                            baseMsg to "\n\n积分: ${stats.rating} ($sign$change)\n等级: ${stats.rankTitle}"
+                        } else baseMsg to ""
+                    }
+                    GameController.GameResult.RepetitionDraw -> {
+                        val baseMsg = "三次重复局面，和棋！"
                         if (isVsAI) {
                             val change = RatingSystem.recordGame(this, gameController.getDifficulty(), 0.5)
                             val stats = RatingSystem.getStats(this)

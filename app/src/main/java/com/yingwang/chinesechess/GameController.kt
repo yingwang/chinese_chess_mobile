@@ -47,6 +47,7 @@ class GameController(
     } else null
 
     private var moveHistory = mutableListOf<Move>()
+    private var positionHashes = mutableListOf<Long>()
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var gameStartTime = 0L
     private var currentMoveStartTime = 0L
@@ -80,6 +81,8 @@ class GameController(
     sealed class GameResult {
         data class Checkmate(val winner: PieceColor) : GameResult()
         object Stalemate : GameResult()
+        data class PerpetualCheck(val winner: PieceColor) : GameResult()
+        object RepetitionDraw : GameResult()
     }
 
     fun setGameMode(mode: GameMode, aiColor: PieceColor = PieceColor.BLACK) {
@@ -93,6 +96,8 @@ class GameController(
         board = Board.createInitialBoard()
         initialBoard = board.copy()
         moveHistory.clear()
+        positionHashes.clear()
+        positionHashes.add(board.getPositionHash())
         ai.clearCache()
         gameStartTime = System.currentTimeMillis()
         currentMoveStartTime = gameStartTime
@@ -148,6 +153,7 @@ class GameController(
         val moveStartTime = currentMoveStartTime
         board.makeMoveInPlace(move)
         moveHistory.add(move)
+        positionHashes.add(board.getPositionHash())
         currentMoveStartTime = System.currentTimeMillis()
 
         // Check for check condition and play sound
@@ -194,30 +200,40 @@ class GameController(
                 }
 
                 if (move != null) {
+                    // Avoid moves that would cause 3rd repetition (perpetual check = loss)
+                    var finalMove = move
+                    if (wouldCauseRepetition(move)) {
+                        val legalMoves = board.getAllLegalMoves()
+                        val safeMove = legalMoves.firstOrNull { !wouldCauseRepetition(it) }
+                        if (safeMove != null) finalMove = safeMove
+                    }
+
                     // Play appropriate sound
-                    if (move.capturedPiece != null) {
+                    if (finalMove.capturedPiece != null) {
                         soundManager.playCaptureSound()
                     } else {
                         soundManager.playMoveSound()
                     }
 
                     // Update score and captured pieces if capturing
-                    if (move.capturedPiece != null) {
-                        val captureValue = move.capturedPiece.type.baseValue
-                        if (move.piece.color == PieceColor.RED) {
+                    val captured = finalMove.capturedPiece
+                    if (captured != null) {
+                        val captureValue = captured.type.baseValue
+                        if (finalMove.piece.color == PieceColor.RED) {
                             redScore += captureValue
-                            redCapturedPieces.add(move.capturedPiece)
+                            redCapturedPieces.add(captured)
                         } else {
                             blackScore += captureValue
-                            blackCapturedPieces.add(move.capturedPiece)
+                            blackCapturedPieces.add(captured)
                         }
                     }
 
                     // Request animation before mutating board state
-                    onMoveAnimationRequested?.invoke(move, board.copy())
+                    onMoveAnimationRequested?.invoke(finalMove, board.copy())
 
-                    board.makeMoveInPlace(move)
-                    moveHistory.add(move)
+                    board.makeMoveInPlace(finalMove)
+                    moveHistory.add(finalMove)
+                    positionHashes.add(board.getPositionHash())
                     currentMoveStartTime = System.currentTimeMillis()
 
                     // Check for check condition and play sound
@@ -226,7 +242,7 @@ class GameController(
                     }
 
                     onBoardUpdated?.invoke(board)
-                    onMoveCompleted?.invoke(move)
+                    onMoveCompleted?.invoke(finalMove)
                     updateStats()
 
                     // Check game over
@@ -244,6 +260,13 @@ class GameController(
         }
     }
 
+    private fun wouldCauseRepetition(move: Move): Boolean {
+        val testBoard = board.copy()
+        testBoard.makeMoveInPlace(move)
+        val hash = testBoard.getPositionHash()
+        return positionHashes.count { it == hash } >= 2 // would be 3rd occurrence
+    }
+
     private fun checkGameOver(): Boolean {
         when {
             board.isCheckmate() -> {
@@ -258,6 +281,22 @@ class GameController(
                 return true
             }
         }
+
+        // Repetition detection: same position 3 times
+        val currentHash = positionHashes.last()
+        val count = positionHashes.count { it == currentHash }
+        if (count >= 3) {
+            soundManager.playGameOverSound()
+            if (board.isInCheck(board.currentPlayer)) {
+                // Current player is in check → opponent perpetually checking → opponent loses
+                val winner = board.currentPlayer
+                onGameOver?.invoke(GameResult.PerpetualCheck(winner))
+            } else {
+                onGameOver?.invoke(GameResult.RepetitionDraw)
+            }
+            return true
+        }
+
         return false
     }
 
@@ -273,6 +312,8 @@ class GameController(
 
         // Rebuild board and captured pieces from history
         board = initialBoard.copy()
+        positionHashes.clear()
+        positionHashes.add(board.getPositionHash())
         redScore = 0
         blackScore = 0
         redCapturedPieces.clear()
@@ -289,6 +330,7 @@ class GameController(
                 }
             }
             board.makeMoveInPlace(move)
+            positionHashes.add(board.getPositionHash())
         }
 
         onBoardUpdated?.invoke(board)
@@ -302,6 +344,8 @@ class GameController(
         board = Board.createFromPieces(position.pieces, position.firstPlayer)
         initialBoard = board.copy()
         moveHistory.clear()
+        positionHashes.clear()
+        positionHashes.add(board.getPositionHash())
         ai.clearCache()
         gameStartTime = System.currentTimeMillis()
         currentMoveStartTime = gameStartTime
@@ -459,6 +503,8 @@ class GameController(
             isEndgameMode = false
             replayMode = false
             moveHistory.clear()
+            positionHashes.clear()
+            positionHashes.add(board.getPositionHash())
             redScore = 0
             blackScore = 0
             redCapturedPieces.clear()
@@ -486,6 +532,7 @@ class GameController(
 
                 board.makeMoveInPlace(move)
                 moveHistory.add(move)
+                positionHashes.add(board.getPositionHash())
             }
 
             gameStartTime = System.currentTimeMillis()
