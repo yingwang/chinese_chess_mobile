@@ -606,7 +606,7 @@ class MainActivity : AppCompatActivity() {
             "高级 (Advanced)",
             "专业 (Professional)",
             "大师 (Master)",
-            "AI 神经网络 (ML)"
+            "棋圣 (Grandmaster)"
         )
 
         val currentMode = gameController.getGameMode()
@@ -621,7 +621,7 @@ class MainActivity : AppCompatActivity() {
                     2 -> AIDifficulty.ADVANCED
                     3 -> AIDifficulty.PROFESSIONAL
                     4 -> AIDifficulty.MASTER
-                    5 -> AIDifficulty.ML
+                    5 -> AIDifficulty.GRANDMASTER
                     else -> AIDifficulty.PROFESSIONAL
                 }
 

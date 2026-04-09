@@ -11,8 +11,8 @@ android {
         applicationId = "com.yingwang.chinesechess"
         minSdk = 24
         targetSdk = 35
-        versionCode = 4
-        versionName = "2.0.0"
+        versionCode = 6
+        versionName = "2.1.0"
     }
 
     signingConfigs {
@@ -48,8 +48,9 @@ android {
         viewBinding = true
     }
 
+
     androidResources {
-        noCompress += "tflite"
+        noCompress += "nnue"
     }
 }
 
@@ -62,6 +63,4 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
-    // TensorFlow Lite for ML chess engine
-    implementation("org.tensorflow:tensorflow-lite:2.14.0")
 }

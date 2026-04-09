@@ -1,8 +1,9 @@
 package com.yingwang.chinesechess
 
 import android.content.Context
+import android.util.Log
 import com.yingwang.chinesechess.ai.ChessAI
-import com.yingwang.chinesechess.ai.ml.MLChessAI
+import com.yingwang.chinesechess.ai.PikafishEngine
 import com.yingwang.chinesechess.model.*
 import kotlinx.coroutines.*
 import org.json.JSONArray
@@ -17,13 +18,13 @@ class GameController(
 ) {
     private val difficulty: AIDifficulty = aiDifficulty
     private val soundManager = SoundManager(context)
-    enum class AIDifficulty(val depth: Int, val timeLimit: Long, val quiescenceDepth: Int) {
-        BEGINNER(2, 1000, 0),
-        INTERMEDIATE(3, 2000, 2),
-        ADVANCED(4, 3000, 3),
-        PROFESSIONAL(5, 5000, 4),
-        MASTER(7, 10000, 5),
-        ML(0, 0, 0)  // Uses neural network MCTS instead of alpha-beta
+    enum class AIDifficulty(val pikafishDepth: Int) {
+        BEGINNER(3),
+        INTERMEDIATE(6),
+        ADVANCED(10),
+        PROFESSIONAL(15),
+        MASTER(20),
+        GRANDMASTER(0)        // Pikafish unlimited depth
     }
 
     enum class GameMode {
@@ -37,14 +38,8 @@ class GameController(
     private var gameMode = GameMode.PLAYER_VS_AI
     private var aiColor = PieceColor.BLACK
     private var isEndgameMode = false
-    private val ai: ChessAI = ChessAI(
-        maxDepth = difficulty.depth,
-        timeLimit = difficulty.timeLimit,
-        quiescenceDepth = difficulty.quiescenceDepth
-    )
-    private val mlAI: MLChessAI? = if (difficulty == AIDifficulty.ML) {
-        MLChessAI(context, numSimulations = 200, cPuct = 1.5f)
-    } else null
+    private val fallbackAI: ChessAI = ChessAI(maxDepth = 3, timeLimit = 2000, quiescenceDepth = 2)
+    private var pikafishEngine: PikafishEngine? = null
 
     private var moveHistory = mutableListOf<Move>()
     private var positionHashes = mutableListOf<Long>()
@@ -98,7 +93,7 @@ class GameController(
         moveHistory.clear()
         positionHashes.clear()
         positionHashes.add(board.getPositionHash())
-        ai.clearCache()
+        fallbackAI.clearCache()
         gameStartTime = System.currentTimeMillis()
         currentMoveStartTime = gameStartTime
         redScore = 0
@@ -186,6 +181,19 @@ class GameController(
         }
     }
 
+    private suspend fun ensurePikafish(): PikafishEngine? {
+        if (pikafishEngine != null) return pikafishEngine
+        return try {
+            val engine = PikafishEngine(context)
+            engine.start()
+            pikafishEngine = engine
+            engine
+        } catch (e: Exception) {
+            Log.e("GameController", "Failed to start Pikafish", e)
+            null
+        }
+    }
+
     fun makeAIMove() {
         if (board.isCheckmate() || board.isStalemate()) return
 
@@ -193,10 +201,12 @@ class GameController(
 
         coroutineScope.launch {
             try {
-                val move = if (mlAI != null) {
-                    mlAI.findBestMove(board, moveHistory)
-                } else {
-                    ai.findBestMove(board, moveHistory)
+                val move = run {
+                    val engine = ensurePikafish()
+                    val depth = if (difficulty.pikafishDepth > 0) difficulty.pikafishDepth else 0
+                    val timeMs = if (depth == 0) 10000L else 0L  // 棋圣: 10s unlimited
+                    engine?.findBestMove(board, depth = depth, moveTimeMs = timeMs)
+                        ?: fallbackAI.findBestMove(board, moveHistory)
                 }
 
                 if (move != null) {
@@ -346,7 +356,7 @@ class GameController(
         moveHistory.clear()
         positionHashes.clear()
         positionHashes.add(board.getPositionHash())
-        ai.clearCache()
+        fallbackAI.clearCache()
         gameStartTime = System.currentTimeMillis()
         currentMoveStartTime = gameStartTime
         redScore = 0
@@ -421,7 +431,7 @@ class GameController(
     }
 
     fun getAIStats(): String {
-        return "Cache size: ${ai.getCacheSize()}, Difficulty: $difficulty"
+        return "Difficulty: $difficulty, Engine: ${if (pikafishEngine != null) "Pikafish" else "fallback"}"
     }
 
     fun getGameMode(): GameMode = gameMode
@@ -568,8 +578,9 @@ class GameController(
         onAIThinking?.invoke(true)
         coroutineScope.launch {
             try {
-                val hintAI = ChessAI(maxDepth = 3, timeLimit = 2000, quiescenceDepth = 2)
-                val bestMove = hintAI.findBestMove(board, moveHistory)
+                val engine = ensurePikafish()
+                val bestMove = engine?.findBestMove(board, moveTimeMs = 2000)
+                    ?: fallbackAI.findBestMove(board, moveHistory)
                 callback(bestMove)
             } finally {
                 onAIThinking?.invoke(false)
@@ -580,7 +591,8 @@ class GameController(
     fun destroy() {
         coroutineScope.cancel()
         soundManager.release()
-        mlAI?.close()
+        pikafishEngine?.close()
+        pikafishEngine = null
     }
 
     fun setSoundEnabled(enabled: Boolean) {
