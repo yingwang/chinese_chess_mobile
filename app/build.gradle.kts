@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace = "com.yingwang.chinesechess"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.yingwang.chinesechess"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 8
         versionName = "2.2.0"
     }
@@ -26,12 +26,22 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
             signingConfig = signingConfigs.getByName("release")
+        }
+    }
+
+    packaging {
+        jniLibs {
+            // The engine is a real executable, not a library we dlopen, so it has to exist as
+            // a file on disk under nativeLibraryDir. Without legacy packaging it stays inside
+            // the APK and there is no path to hand to ProcessBuilder.
+            useLegacyPackaging = true
         }
     }
 

@@ -15,6 +15,8 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -54,6 +56,12 @@ class MainActivity : AppCompatActivity() {
     private var thinkingAnimator: AnimatorSet? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // The board is always dark, so pin both bars to light icons rather than letting the
+        // system pick from the day/night mode.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT)
+        )
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 

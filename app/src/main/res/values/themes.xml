@@ -4,6 +4,10 @@
         <item name="colorPrimary">#8B4513</item>
         <item name="colorPrimaryDark">#2A1A0A</item>
         <item name="colorAccent">#D4A860</item>
+        <!-- Padding for the system bar insets is applied to android.R.id.content, whose
+             background is the window background, so this has to match the board backdrop or
+             the status bar strip renders white above a dark app. -->
+        <item name="android:windowBackground">#2A1A0A</item>
         <item name="android:alertDialogTheme">@style/ChessDialogTheme</item>
         <item name="materialAlertDialogTheme">@style/ChessDialogTheme</item>
         <item name="alertDialogTheme">@style/ChessDialogTheme</item>

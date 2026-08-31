@@ -20,7 +20,7 @@ class PikafishEngine(private val context: Context) : Closeable {
 
     companion object {
         private const val TAG = "PikafishEngine"
-        private const val BINARY_NAME = "pikafish_arm64"
+        private const val BINARY_NAME = "libpikafish.so"
         private const val NNUE_NAME = "pikafish.nnue"
 
         private val PIECE_TO_FEN = mapOf(
@@ -35,18 +35,21 @@ class PikafishEngine(private val context: Context) : Closeable {
     }
 
     /**
-     * Extract binary and NNUE from assets to app files dir, start process.
+     * Locate the engine binary, extract the NNUE weights, start the process.
+     *
+     * The binary ships in jniLibs rather than in assets because Android 10 and later refuse
+     * to execute anything inside the app's own writable data directory; SELinux denies
+     * execute_no_trans on app_data_file, so starting it from filesDir failed with
+     * "error=13, Permission denied" and every difficulty silently fell back to the shallow
+     * search. nativeLibraryDir is read-only and may be executed. The weights are plain data,
+     * so they still come from assets.
      */
     suspend fun start() = withContext(Dispatchers.IO) {
         val filesDir = context.filesDir
-        val binaryFile = File(filesDir, BINARY_NAME)
+        val binaryFile = File(context.applicationInfo.nativeLibraryDir, BINARY_NAME)
         val nnueFile = File(filesDir, NNUE_NAME)
 
-        // Extract binary if not present or outdated
-        if (!binaryFile.exists() || needsUpdate(binaryFile)) {
-            extractAsset(BINARY_NAME, binaryFile)
-            binaryFile.setExecutable(true)
-        }
+        check(binaryFile.canExecute()) { "Engine binary is missing or not executable: $binaryFile" }
 
         // Extract NNUE if not present
         if (!nnueFile.exists()) {
@@ -227,16 +230,6 @@ class PikafishEngine(private val context: Context) : Closeable {
             FileOutputStream(targetFile).use { output ->
                 input.copyTo(output)
             }
-        }
-    }
-
-    private fun needsUpdate(binaryFile: File): Boolean {
-        // Re-extract if binary is older than APK install time
-        try {
-            val apkInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            return binaryFile.lastModified() < apkInfo.lastUpdateTime
-        } catch (_: Exception) {
-            return false
         }
     }
 }

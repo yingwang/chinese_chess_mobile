@@ -33,3 +33,7 @@ google-services.json
 # Android Profiling
 *.hprof
 .DS_Store
+
+# Engine source checkout and built bundles, neither belongs in the repo
+engine-build/
+releases/
