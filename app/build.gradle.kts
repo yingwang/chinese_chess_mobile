@@ -6,12 +6,14 @@ plugins {
 android {
     namespace = "com.yingwang.chinesechess"
     compileSdk = 36
+    // Needed only so AGP can find objcopy and strip the engine symbols into the bundle.
+    ndkVersion = "26.1.10909125"
 
     defaultConfig {
         applicationId = "com.yingwang.chinesechess"
         minSdk = 24
         targetSdk = 36
-        versionCode = 9
+        versionCode = 10
         versionName = "2.2.0"
     }
 
@@ -28,6 +30,11 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            ndk {
+                // The engine binaries ship unstripped; hand their symbols to Play so native
+                // crashes come back with function names instead of raw addresses.
+                debugSymbolLevel = "SYMBOL_TABLE"
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
