@@ -2,12 +2,12 @@
 <resources>
     <style name="Theme.ChineseChess" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">#8B4513</item>
-        <item name="colorPrimaryDark">#2A1A0A</item>
+        <item name="colorPrimaryDark">#3B2414</item>
         <item name="colorAccent">#D4A860</item>
         <!-- Padding for the system bar insets is applied to android.R.id.content, whose
              background is the window background, so this has to match the board backdrop or
              the status bar strip renders white above a dark app. -->
-        <item name="android:windowBackground">#2A1A0A</item>
+        <item name="android:windowBackground">#3B2414</item>
         <item name="android:alertDialogTheme">@style/ChessDialogTheme</item>
         <item name="materialAlertDialogTheme">@style/ChessDialogTheme</item>
         <item name="alertDialogTheme">@style/ChessDialogTheme</item>
@@ -15,12 +15,13 @@
 
     <style name="ChessDialogTheme" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
         <item name="android:windowBackground">@drawable/dialog_background</item>
+        <item name="android:backgroundDimAmount">0.45</item>
         <item name="android:textColor">#F0E0C0</item>
         <item name="android:textColorPrimary">#F0E0C0</item>
         <item name="android:textColorSecondary">#C0A880</item>
         <item name="android:textColorAlertDialogListItem">#F0E0C0</item>
         <item name="colorOnSurface">#F0E0C0</item>
-        <item name="colorSurface">#3A2515</item>
+        <item name="colorSurface">#4A2E1B</item>
         <item name="colorAccent">#D4A860</item>
         <item name="android:windowTitleStyle">@style/ChessDialogTitle</item>
         <item name="buttonBarPositiveButtonStyle">@style/ChessDialogButton</item>

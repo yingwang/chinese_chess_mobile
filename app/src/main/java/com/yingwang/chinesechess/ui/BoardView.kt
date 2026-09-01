@@ -246,13 +246,37 @@ class BoardView @JvmOverloads constructor(
         return offsetY + piece.position.row * cellSize
     }
 
-    // ── Size ──
+    // ── Measure & Size ──
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val widthSize = MeasureSpec.getSize(widthMeasureSpec)
+        val heightSize = MeasureSpec.getSize(heightMeasureSpec)
+
+        val availableWidth = widthSize - paddingLeft - paddingRight
+        val availableHeight = heightSize - paddingTop - paddingBottom
+
+        if (availableWidth > 0 && availableHeight > 0) {
+            val cell = minOf(availableWidth / 9f, availableHeight / 10f)
+            val desiredWidth = (cell * 9f).toInt() + paddingLeft + paddingRight
+            val desiredHeight = (cell * 10f).toInt() + paddingTop + paddingBottom
+            setMeasuredDimension(
+                resolveSize(desiredWidth, widthMeasureSpec),
+                resolveSize(desiredHeight, heightMeasureSpec)
+            )
+        } else {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+        }
+    }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
+        updateDimensions(w, h)
+    }
 
+    private fun updateDimensions(w: Int, h: Int) {
         val boardWidth = w - paddingLeft - paddingRight
         val boardHeight = h - paddingTop - paddingBottom
+        if (boardWidth <= 0 || boardHeight <= 0) return
 
         cellSize = minOf(boardWidth / 9f, boardHeight / 10f)
 
@@ -270,6 +294,11 @@ class BoardView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+
+        if (cellSize <= 0f) {
+            updateDimensions(width, height)
+            if (cellSize <= 0f) return
+        }
 
         val boardLeft = offsetX - cellSize / 2
         val boardTop = offsetY - cellSize / 2
