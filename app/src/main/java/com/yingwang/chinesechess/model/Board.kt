@@ -131,6 +131,8 @@ class Board {
         val general = pieces.values.find { it.type == PieceType.GENERAL && it.color == color }
             ?: return true // General captured = checkmate
 
+        if (isGeneralsFacing()) return true
+
         // Check if any opponent piece can capture the general
         val opponentMoves = getPiecesByColor(color.opposite()).flatMap { piece ->
             piece.getLegalMoves(this)

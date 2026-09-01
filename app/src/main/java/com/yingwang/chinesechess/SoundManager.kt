@@ -39,35 +39,12 @@ class SoundManager(private val context: Context) {
             .setAudioAttributes(audioAttributes)
             .build()
 
-        // Try to load sound files if they exist in raw resources
-        // If not found, we'll use ToneGenerator fallback
+        // Load sound files from raw resources
         try {
-            val moveResId = context.resources.getIdentifier("move", "raw", context.packageName)
-            if (moveResId != 0) {
-                moveSoundId = soundPool?.load(context, moveResId, 1) ?: -1
-            }
-
-            val captureResId = context.resources.getIdentifier("capture", "raw", context.packageName)
-            if (captureResId != 0) {
-                captureSoundId = soundPool?.load(context, captureResId, 1) ?: -1
-            }
-
-            val checkResId = context.resources.getIdentifier("check", "raw", context.packageName)
-            if (checkResId != 0) {
-                checkSoundId = soundPool?.load(context, checkResId, 1) ?: -1
-            }
-
-            val gameOverResId = context.resources.getIdentifier("gameover", "raw", context.packageName)
-            if (gameOverResId != 0) {
-                gameOverSoundId = soundPool?.load(context, gameOverResId, 1) ?: -1
-            }
-
-            val selectResId = context.resources.getIdentifier("select", "raw", context.packageName)
-            if (selectResId != 0) {
-                selectSoundId = soundPool?.load(context, selectResId, 1) ?: -1
-            }
-        } catch (e: Exception) {
-            // Resources not found, will use tone generator
+            moveSoundId = soundPool?.load(context, R.raw.move_piece, 1) ?: -1
+            captureSoundId = soundPool?.load(context, R.raw.capture_piece, 1) ?: -1
+        } catch (_: Exception) {
+            // Fallback will use tone generator
         }
     }
 

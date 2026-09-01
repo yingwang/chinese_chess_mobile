@@ -24,7 +24,8 @@ object RatingSystem {
         GameController.AIDifficulty.INTERMEDIATE to 1000,
         GameController.AIDifficulty.ADVANCED to 1300,
         GameController.AIDifficulty.PROFESSIONAL to 1600,
-        GameController.AIDifficulty.MASTER to 1900
+        GameController.AIDifficulty.MASTER to 1900,
+        GameController.AIDifficulty.GRANDMASTER to 2300
     )
 
     data class PlayerStats(

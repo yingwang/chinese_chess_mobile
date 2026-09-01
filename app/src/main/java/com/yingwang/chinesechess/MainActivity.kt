@@ -274,12 +274,6 @@ class MainActivity : AppCompatActivity() {
                     HapticFeedbackConstants.VIRTUAL_KEY,
                     HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
                 )
-                // Sound effects
-                if (move.capturedPiece != null) {
-                    audioManager.playCaptureSound()
-                } else {
-                    audioManager.playMoveSound()
-                }
             }
         }
 
@@ -828,17 +822,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showAboutDialog() {
+        val verName = try {
+            packageManager.getPackageInfo(packageName, 0).versionName ?: "v2.2.0"
+        } catch (_: Exception) {
+            "v2.2.0"
+        }
         AlertDialog.Builder(this, R.style.ChessDialogTheme)
             .setTitle("关于中国象棋")
             .setMessage("""
-                中国象棋 v1.0
+                中国象棋 $verName
 
                 专业级AI引擎特性:
-                • Alpha-Beta剪枝
-                • 置换表缓存
-                • 迭代加深搜索
-                • 静态搜索
-                • 移动排序优化
+                • Pikafish NNUE 强力深度博弈
+                • 置换表与静态搜索
+                • 走法排序与静止搜索优化
+                • 动态 ELO 积分天梯系统
 
                 ${gameController.getAIStats()}
             """.trimIndent())
