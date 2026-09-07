@@ -1,7 +1,17 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
+fun signingValue(key: String, env: String): String? =
+    keystoreProperties.getProperty(key) ?: System.getenv(env)
 
 android {
     namespace = "com.yingwang.chinesechess"
@@ -13,16 +23,18 @@ android {
         applicationId = "com.yingwang.chinesechess"
         minSdk = 24
         targetSdk = 36
-        versionCode = 11
-        versionName = "2.2.1"
+        versionCode = 12
+        versionName = "2.3.0"
     }
 
+    // Release signing comes from keystore.properties in the repo root (gitignored) or from
+    // the CHESS_KEYSTORE_* environment variables; nothing secret lives in this file.
     signingConfigs {
         create("release") {
-            storeFile = file("../chess-release.keystore")
-            storePassword = "chinesechess2024"
-            keyAlias = "chess"
-            keyPassword = "chinesechess2024"
+            storeFile = file(signingValue("storeFile", "CHESS_KEYSTORE") ?: "../chess-release.keystore")
+            storePassword = signingValue("storePassword", "CHESS_KEYSTORE_PASSWORD")
+            keyAlias = signingValue("keyAlias", "CHESS_KEY_ALIAS") ?: "chess"
+            keyPassword = signingValue("keyPassword", "CHESS_KEY_PASSWORD")
         }
     }
 

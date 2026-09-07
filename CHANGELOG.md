@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-09-07
+
+### Changed
+- New look: a slate ground with celadon accents, one card per side in the header (role, score, captured pieces, whose move it is), a status pill, and an icon bar at the bottom; every colour lives in `values/colors.xml`
+- The board is now drawn in code: framed honey-coloured wood with a light grain, double border, position marks and file numbers; the walnut photograph (and the AI-generated logo baked into its corner) is gone
+- The AI never answers instantly any more; each of its moves takes at least 0.9 s so the reply is visible
+- Hint marks the move on the board and shows a snackbar instead of a dialog covering the board
+- Move list fills the space between the board and the buttons instead of a fixed 100dp
+- AI difficulty can be changed from 更多 without going through a new game
+- All user-facing text moved from Kotlin into `strings.xml`
+- Release signing reads `keystore.properties` or environment variables; the passwords are no longer in `build.gradle.kts`
+
+### Fixed
+- Chinese notation: diagonal pieces (馬, 相/象, 仕/士) name the destination file after 进/退, and two pieces of a kind on one file are written 前/后
+- Avoiding a threefold repetition re-runs the engine with the repeating moves excluded instead of playing the first legal move it finds
+- Endgame studies are no longer auto-saved; resuming one replayed its moves onto the standard opening
+- Resuming a saved game keeps its difficulty and its clock instead of resetting both
+- Mute is remembered across launches
+- One audio manager instead of two loading the same samples; the dead options menu is removed
+
 ## [1.1.0] - 2025-11-16
 
 ### Added
@@ -52,5 +72,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Undo functionality
 - Game statistics tracking (time, move count, material advantage)
 
+[2.3.0]: https://github.com/yingwang/chinese_chess_mobile/compare/v2.2.1...v2.3.0
 [1.1.0]: https://github.com/yingwang/chinese_chess_mobile/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/yingwang/chinese_chess_mobile/releases/tag/v1.0.0

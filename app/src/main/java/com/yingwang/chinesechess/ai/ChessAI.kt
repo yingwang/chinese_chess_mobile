@@ -43,7 +43,20 @@ class ChessAI(
         private const val CHECK_EXTENSION = 1
     }
 
-    suspend fun findBestMove(board: Board, moveHistory: List<Move> = emptyList()): Move? = withContext(Dispatchers.Default) {
+    /** When set, only root moves whose (from, to) is in this set are searched. */
+    private var rootAllowed: Set<Pair<Position, Position>>? = null
+
+    /**
+     * @param allowedMoves If given, the search is restricted to these root moves and the
+     *   opening book is skipped; used to steer away from a threefold repetition.
+     */
+    suspend fun findBestMove(
+        board: Board,
+        moveHistory: List<Move> = emptyList(),
+        allowedMoves: List<Move>? = null
+    ): Move? = withContext(Dispatchers.Default) {
+        rootAllowed = allowedMoves?.map { it.from to it.to }?.toSet()
+        if (rootAllowed?.isEmpty() == true) return@withContext null
         nodesSearched = 0
         startTime = System.currentTimeMillis()
         shouldStop = false
@@ -54,7 +67,7 @@ class ChessAI(
         }
 
         // Opening book
-        if (moveHistory.size < 6) {
+        if (rootAllowed == null && moveHistory.size < 6) {
             val openingMove = OpeningBook.getOpeningMove(moveHistory)
             if (openingMove != null) {
                 val legalMoves = board.getAllLegalMoves()
@@ -111,7 +124,11 @@ class ChessAI(
         var currentBeta = beta
 
         val ttEntry = transpositionTable.probe(board.getPositionHash())
-        val moves = orderMoves(board, board.getAllLegalMoves(), ttEntry?.bestMove, depth)
+        val allowed = rootAllowed
+        val legal = board.getAllLegalMoves().let { all ->
+            if (allowed == null) all else all.filter { (it.from to it.to) in allowed }
+        }
+        val moves = orderMoves(board, legal, ttEntry?.bestMove, depth)
         if (moves.isEmpty()) return null
 
         for (move in moves) {

@@ -82,22 +82,28 @@ class PikafishEngine(private val context: Context) : Closeable {
      * @param board Current board state
      * @param depth Search depth (higher = stronger)
      * @param moveTimeMs Time limit in milliseconds (0 = use depth only)
+     * @param searchMoves If given, the engine only considers these root moves (UCI
+     *   `searchmoves`); used to steer away from a threefold repetition.
      * @return Best move, or null if no move found
      */
     suspend fun findBestMove(
         board: Board,
         depth: Int = 10,
-        moveTimeMs: Long = 0
+        moveTimeMs: Long = 0,
+        searchMoves: List<Move>? = null
     ): Move? = withContext(Dispatchers.IO) {
         if (!isReady) return@withContext null
+        if (searchMoves != null && searchMoves.isEmpty()) return@withContext null
 
         val fen = boardToFen(board)
         sendCommand("position fen $fen")
 
-        val goCmd = if (moveTimeMs > 0) {
-            "go movetime $moveTimeMs"
-        } else {
-            "go depth $depth"
+        val goCmd = buildString {
+            append(if (moveTimeMs > 0) "go movetime $moveTimeMs" else "go depth $depth")
+            if (searchMoves != null) {
+                append(" searchmoves ")
+                append(searchMoves.joinToString(" ") { posToUci(it.from) + posToUci(it.to) })
+            }
         }
         sendCommand(goCmd)
 

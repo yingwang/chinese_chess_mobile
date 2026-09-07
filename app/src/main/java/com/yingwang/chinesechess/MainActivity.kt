@@ -3,24 +3,33 @@ package com.yingwang.chinesechess
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.view.Gravity
 import android.view.HapticFeedbackConstants
-import android.view.Menu
-import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.ListAdapter
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.snackbar.Snackbar
 import com.yingwang.chinesechess.GameController.AIDifficulty
+import com.yingwang.chinesechess.GameController.GameMode
 import com.yingwang.chinesechess.audio.GameAudioManager
 import com.yingwang.chinesechess.model.Piece
 import com.yingwang.chinesechess.model.PieceColor
@@ -28,68 +37,94 @@ import com.yingwang.chinesechess.ui.BoardView
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var boardView: BoardView
+
+    // Header
+    private lateinit var redCard: View
+    private lateinit var blackCard: View
+    private lateinit var redTurnDot: View
+    private lateinit var blackTurnDot: View
+    private lateinit var redRoleText: TextView
+    private lateinit var blackRoleText: TextView
+    private lateinit var redScoreText: TextView
+    private lateinit var blackScoreText: TextView
+    private lateinit var redCapturedLayout: LinearLayout
+    private lateinit var blackCapturedLayout: LinearLayout
+    private lateinit var gameTimeText: TextView
+    private lateinit var moveCountText: TextView
+    private lateinit var gameModeText: TextView
+
+    // Status pill
     private lateinit var statusText: TextView
     private lateinit var aiThinkingIndicator: LinearLayout
-    private lateinit var turnIndicatorDot: View
     private lateinit var thinkingDot1: View
     private lateinit var thinkingDot2: View
     private lateinit var thinkingDot3: View
+
+    private lateinit var moveHistoryText: TextView
     private lateinit var newGameButton: Button
     private lateinit var hintButton: Button
     private lateinit var undoButton: Button
     private lateinit var moreButton: Button
+
     private var isMuted = false
-    private lateinit var gameController: GameController
-    private lateinit var gameModeText: TextView
-    private lateinit var redScoreText: TextView
-    private lateinit var blackScoreText: TextView
-    private lateinit var gameTimeText: TextView
-    private lateinit var moveCountText: TextView
-    private lateinit var moveHistoryText: TextView
-    private lateinit var blackCapturedLayout: LinearLayout
-    private lateinit var redCapturedLayout: LinearLayout
+    private val settings by lazy { getSharedPreferences("chess_settings", MODE_PRIVATE) }
     private lateinit var audioManager: GameAudioManager
+    private lateinit var gameController: GameController
     private var thinkingAnimator: AnimatorSet? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // The board is always dark, so pin both bars to light icons rather than letting the
-        // system pick from the day/night mode.
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT)
-        )
+        // The ground colour comes from the palette, not from day/night mode, so the bar
+        // icons follow a palette flag rather than the system setting.
+        if (resources.getBoolean(R.bool.chess_light_system_bars)) {
+            enableEdgeToEdge(
+                statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+                navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+            )
+        } else {
+            enableEdgeToEdge(
+                statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+                navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT)
+            )
+        }
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Handle edge-to-edge insets for Android 15+
         val rootView = findViewById<View>(android.R.id.content)
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(rootView) { v, insets ->
-            val systemBars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        ViewCompat.setOnApplyWindowInsetsListener(rootView) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
 
         audioManager = GameAudioManager(this)
-        gameController = GameController(this, AIDifficulty.PROFESSIONAL)
+        // Mute used to reset on every launch, so the guqin came back each time.
+        isMuted = settings.getBoolean("muted", false)
+        audioManager.setMuted(isMuted)
+        // A saved game remembers its difficulty; start the controller with it so
+        // resuming faces the same opponent instead of always PROFESSIONAL.
+        val startDifficulty = GameController.savedDifficulty(this) ?: AIDifficulty.PROFESSIONAL
+        gameController = GameController(this, startDifficulty, audioManager)
         initViews()
-        setupGameController()
+        setupGameControllerCallbacks()
         gameController.startNewGame()
         startTimerUpdates()
 
-        // Check for saved game and offer to resume
         if (gameController.hasSavedGame(this)) {
             AlertDialog.Builder(this, R.style.ChessDialogTheme)
-                .setTitle("继续游戏")
-                .setMessage("发现上次未完成的棋局，是否继续？")
-                .setPositiveButton("继续") { _, _ ->
+                .setTitle(R.string.resume_title)
+                .setMessage(R.string.resume_message)
+                .setPositiveButton(R.string.resume_continue) { _, _ ->
                     gameController.loadGame(this)
                     updateGameModeDisplay()
                 }
-                .setNegativeButton("新游戏") { _, _ ->
+                .setNegativeButton(R.string.new_game) { _, _ ->
                     gameController.deleteSavedGame(this)
                 }
                 .show()
@@ -104,7 +139,6 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         audioManager.pauseBackgroundMusic()
-        // Auto-save game
         if (gameController.getMoveHistory().isNotEmpty()) {
             gameController.saveGame(this)
         }
@@ -112,86 +146,78 @@ class MainActivity : AppCompatActivity() {
 
     private fun initViews() {
         boardView = findViewById(R.id.boardView)
+        redCard = findViewById(R.id.redCard)
+        blackCard = findViewById(R.id.blackCard)
+        redTurnDot = findViewById(R.id.redTurnDot)
+        blackTurnDot = findViewById(R.id.blackTurnDot)
+        redRoleText = findViewById(R.id.redRoleText)
+        blackRoleText = findViewById(R.id.blackRoleText)
+        redScoreText = findViewById(R.id.redScoreText)
+        blackScoreText = findViewById(R.id.blackScoreText)
+        redCapturedLayout = findViewById(R.id.redCapturedPieces)
+        blackCapturedLayout = findViewById(R.id.blackCapturedPieces)
+        gameTimeText = findViewById(R.id.gameTimeText)
+        moveCountText = findViewById(R.id.moveCountText)
+        gameModeText = findViewById(R.id.gameModeText)
         statusText = findViewById(R.id.statusText)
         aiThinkingIndicator = findViewById(R.id.aiThinkingIndicator)
-        turnIndicatorDot = findViewById(R.id.turnIndicatorDot)
         thinkingDot1 = findViewById(R.id.thinkingDot1)
         thinkingDot2 = findViewById(R.id.thinkingDot2)
         thinkingDot3 = findViewById(R.id.thinkingDot3)
+        moveHistoryText = findViewById(R.id.moveHistoryText)
         newGameButton = findViewById(R.id.newGameButton)
         hintButton = findViewById(R.id.hintButton)
         undoButton = findViewById(R.id.undoButton)
-        gameModeText = findViewById(R.id.gameModeText)
-        redScoreText = findViewById(R.id.redScoreText)
-        blackScoreText = findViewById(R.id.blackScoreText)
-        gameTimeText = findViewById(R.id.gameTimeText)
-        moveCountText = findViewById(R.id.moveCountText)
-        moveHistoryText = findViewById(R.id.moveHistoryText)
-        blackCapturedLayout = findViewById(R.id.blackCapturedPieces)
-        redCapturedLayout = findViewById(R.id.redCapturedPieces)
         moreButton = findViewById(R.id.moreButton)
 
-        moreButton.setOnClickListener {
-            showMoreDialog()
-        }
-
-        newGameButton.setOnClickListener {
-            showNewGameDialog()
-        }
+        newGameButton.setOnClickListener { showNewGameDialog() }
+        moreButton.setOnClickListener { showMoreDialog() }
 
         undoButton.setOnClickListener {
             if (gameController.getMoveHistory().isEmpty()) {
-                Toast.makeText(this, "没有可以悔的棋", Toast.LENGTH_SHORT).show()
+                toast(R.string.undo_none)
                 return@setOnClickListener
             }
-
             AlertDialog.Builder(this, R.style.ChessDialogTheme)
-                .setTitle("确认悔棋")
-                .setMessage("确定要悔棋吗？")
-                .setPositiveButton("确定") { _, _ ->
+                .setTitle(R.string.undo_confirm_title)
+                .setMessage(R.string.undo_confirm_message)
+                .setPositiveButton(R.string.ok) { _, _ ->
                     if (gameController.undoLastMove()) {
                         boardView.clearSelection()
-                        Toast.makeText(this, "已悔棋", Toast.LENGTH_SHORT).show()
+                        toast(R.string.undo_done)
                     }
                 }
-                .setNegativeButton("取消", null)
+                .setNegativeButton(R.string.cancel, null)
                 .show()
         }
 
         hintButton.setOnClickListener {
             if (!gameController.isPlayerTurn()) {
-                Toast.makeText(this, "不是你的回合", Toast.LENGTH_SHORT).show()
+                toast(R.string.not_your_turn)
                 return@setOnClickListener
             }
             gameController.getHint { move ->
                 runOnUiThread {
                     if (move != null) {
                         boardView.highlightMove(move)
-                        AlertDialog.Builder(this, R.style.ChessDialogTheme)
-                            .setTitle("提示")
-                            .setMessage("建议走: ${formatMove(move)}")
-                            .setPositiveButton("知道了", null)
-                            .show()
+                        val text = MoveNotation.format(move, gameController.getCurrentBoard())
+                        Snackbar.make(boardView, getString(R.string.hint_suggest, text), 4000).show()
                     } else {
-                        AlertDialog.Builder(this, R.style.ChessDialogTheme)
-                            .setMessage("无法提供建议")
-                            .setPositiveButton("确定", null)
-                            .show()
+                        Snackbar.make(boardView, R.string.hint_unavailable, Snackbar.LENGTH_SHORT).show()
                     }
                 }
             }
         }
-    }
 
-    private fun setupGameController() {
-        setupGameControllerCallbacks()
+        updateScores(0, 0)
+        moveCountText.text = getString(R.string.round_label, 0)
     }
 
     private fun setupGameControllerCallbacks() {
         gameController.onBoardUpdated = { board ->
             runOnUiThread {
                 boardView.setBoard(board)
-                updateStatus(board.currentPlayer)
+                updateStatus()
                 if (gameController.getMoveHistory().isEmpty()) {
                     boardView.highlightMove(null)
                 }
@@ -200,58 +226,35 @@ class MainActivity : AppCompatActivity() {
 
         gameController.onGameOver = { result ->
             runOnUiThread {
-                val aiColor = gameController.getAIColor()
-                val playerColor = aiColor.opposite()
-                val isVsAI = gameController.getGameMode() == GameController.GameMode.PLAYER_VS_AI
+                val playerColor = gameController.getAIColor().opposite()
+                val isVsAI = gameController.getGameMode() == GameMode.PLAYER_VS_AI
 
-                val (message, ratingMsg) = when (result) {
-                    is GameController.GameResult.Checkmate -> {
-                        val winner = if (result.winner == PieceColor.RED) "红方" else "黑方"
-                        val baseMsg = "$winner 获胜！"
-                        if (isVsAI) {
-                            val score = if (result.winner == playerColor) 1.0 else 0.0
-                            val change = RatingSystem.recordGame(this, gameController.getDifficulty(), score)
-                            val stats = RatingSystem.getStats(this)
-                            val sign = if (change >= 0) "+" else ""
-                            baseMsg to "\n\n积分: ${stats.rating} ($sign$change)\n等级: ${stats.rankTitle}"
-                        } else baseMsg to ""
-                    }
-                    is GameController.GameResult.PerpetualCheck -> {
-                        val winner = if (result.winner == PieceColor.RED) "红方" else "黑方"
-                        val baseMsg = "长将判负！$winner 获胜！"
-                        if (isVsAI) {
-                            val score = if (result.winner == playerColor) 1.0 else 0.0
-                            val change = RatingSystem.recordGame(this, gameController.getDifficulty(), score)
-                            val stats = RatingSystem.getStats(this)
-                            val sign = if (change >= 0) "+" else ""
-                            baseMsg to "\n\n积分: ${stats.rating} ($sign$change)\n等级: ${stats.rankTitle}"
-                        } else baseMsg to ""
-                    }
-                    GameController.GameResult.Stalemate -> {
-                        val baseMsg = "和棋！"
-                        if (isVsAI) {
-                            val change = RatingSystem.recordGame(this, gameController.getDifficulty(), 0.5)
-                            val stats = RatingSystem.getStats(this)
-                            val sign = if (change >= 0) "+" else ""
-                            baseMsg to "\n\n积分: ${stats.rating} ($sign$change)\n等级: ${stats.rankTitle}"
-                        } else baseMsg to ""
-                    }
-                    GameController.GameResult.RepetitionDraw -> {
-                        val baseMsg = "三次重复局面，和棋！"
-                        if (isVsAI) {
-                            val change = RatingSystem.recordGame(this, gameController.getDifficulty(), 0.5)
-                            val stats = RatingSystem.getStats(this)
-                            val sign = if (change >= 0) "+" else ""
-                            baseMsg to "\n\n积分: ${stats.rating} ($sign$change)\n等级: ${stats.rankTitle}"
-                        } else baseMsg to ""
-                    }
+                fun rated(score: Double): String {
+                    if (!isVsAI) return ""
+                    val change = RatingSystem.recordGame(this, gameController.getDifficulty(), score)
+                    val stats = RatingSystem.getStats(this)
+                    val sign = if (change >= 0) "+" else ""
+                    return getString(R.string.rating_summary, stats.rating.toString(), "$sign$change", stats.rankTitle)
+                }
+
+                val message = when (result) {
+                    is GameController.GameResult.Checkmate ->
+                        getString(R.string.wins, sideName(result.winner)) +
+                            rated(if (result.winner == playerColor) 1.0 else 0.0)
+                    is GameController.GameResult.PerpetualCheck ->
+                        getString(R.string.perpetual_check_loss, sideName(result.winner)) +
+                            rated(if (result.winner == playerColor) 1.0 else 0.0)
+                    GameController.GameResult.Stalemate ->
+                        getString(R.string.draw) + rated(0.5)
+                    GameController.GameResult.RepetitionDraw ->
+                        getString(R.string.repetition_draw) + rated(0.5)
                 }
 
                 AlertDialog.Builder(this, R.style.ChessDialogTheme)
-                    .setTitle("游戏结束")
-                    .setMessage(message + ratingMsg)
-                    .setPositiveButton("新游戏") { _, _ -> gameController.startNewGame() }
-                    .setNegativeButton("取消", null)
+                    .setTitle(R.string.game_over)
+                    .setMessage(message)
+                    .setPositiveButton(R.string.new_game) { _, _ -> gameController.startNewGame() }
+                    .setNegativeButton(R.string.cancel, null)
                     .show()
             }
         }
@@ -262,14 +265,13 @@ class MainActivity : AppCompatActivity() {
                 if (isThinking) startThinkingAnimation() else stopThinkingAnimation()
                 undoButton.isEnabled = !isThinking
                 hintButton.isEnabled = !isThinking
-                statusText.text = if (isThinking) "AI思考中..." else getStatusText()
+                statusText.text = if (isThinking) getString(R.string.ai_thinking) else getStatusText()
             }
         }
 
         gameController.onMoveCompleted = { move ->
             runOnUiThread {
                 boardView.highlightMove(move)
-                // Haptic feedback
                 boardView.performHapticFeedback(
                     HapticFeedbackConstants.VIRTUAL_KEY,
                     HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
@@ -278,9 +280,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         gameController.onStatsUpdated = { stats ->
-            runOnUiThread {
-                updateGameStats(stats)
-            }
+            runOnUiThread { updateGameStats(stats) }
         }
 
         gameController.onMoveAnimationRequested = { move, preBoard ->
@@ -293,63 +293,66 @@ class MainActivity : AppCompatActivity() {
 
         boardView.setOnMoveListener { move ->
             if (gameController.isInReplayMode()) {
-                Toast.makeText(this, "回放模式中，不能走棋", Toast.LENGTH_SHORT).show()
+                toast(R.string.replay_blocked)
                 boardView.clearSelection()
                 return@setOnMoveListener
             }
             if (!gameController.isPlayerTurn()) {
-                Toast.makeText(this, "不是你的回合", Toast.LENGTH_SHORT).show()
+                toast(R.string.not_your_turn)
                 boardView.clearSelection()
                 return@setOnMoveListener
             }
-
             if (gameController.makePlayerMove(move)) {
                 boardView.clearSelection()
             } else {
-                Toast.makeText(this, "非法移动", Toast.LENGTH_SHORT).show()
+                toast(R.string.illegal_move)
             }
         }
 
         updateGameModeDisplay()
     }
 
-    private fun updateStatus(currentPlayer: PieceColor) {
+    // ── Header and status ──
+
+    private fun sideName(color: PieceColor): String =
+        getString(if (color == PieceColor.RED) R.string.red_side else R.string.black_side)
+
+    private fun updateStatus() {
         statusText.text = getStatusText()
-        // Update turn indicator dot color
-        val dotDrawable = turnIndicatorDot.background as? GradientDrawable
-        dotDrawable?.setColor(
-            if (currentPlayer == PieceColor.RED) Color.rgb(200, 40, 40)
-            else Color.rgb(40, 40, 40)
-        )
+        val board = gameController.getCurrentBoard()
+        val over = board.isCheckmate() || board.isStalemate()
+        val redActive = !over && board.currentPlayer == PieceColor.RED
+        val blackActive = !over && board.currentPlayer == PieceColor.BLACK
+        redCard.setBackgroundResource(if (redActive) R.drawable.player_card_active else R.drawable.player_card)
+        blackCard.setBackgroundResource(if (blackActive) R.drawable.player_card_active else R.drawable.player_card)
+        redTurnDot.visibility = if (redActive) View.VISIBLE else View.INVISIBLE
+        blackTurnDot.visibility = if (blackActive) View.VISIBLE else View.INVISIBLE
     }
 
     private fun getStatusText(): String {
         val board = gameController.getCurrentBoard()
-        val playerName = if (board.currentPlayer == PieceColor.RED) "红方" else "黑方"
-
+        val side = sideName(board.currentPlayer)
         return when {
-            board.isCheckmate() -> {
-                val winner = if (board.currentPlayer == PieceColor.RED) "黑方" else "红方"
-                "$winner 获胜！"
-            }
-            board.isStalemate() -> "和棋"
-            board.isInCheck(board.currentPlayer) -> "$playerName 将军！"
-            else -> "$playerName 走棋"
+            board.isCheckmate() -> getString(R.string.wins, sideName(board.currentPlayer.opposite()))
+            board.isStalemate() -> getString(R.string.draw_short)
+            board.isInCheck(board.currentPlayer) -> getString(R.string.in_check, side)
+            else -> getString(R.string.side_to_move, side)
         }
     }
 
-    private fun updateGameStats(stats: GameController.GameStats) {
-        redScoreText.text = "红方: ${stats.redScore}"
-        blackScoreText.text = "黑方: ${stats.blackScore}"
-        gameTimeText.text = formatTime(stats.gameTime)
-        moveCountText.text = "回合: ${stats.moveNumber}"
-        updateMoveHistory()
-        updateCapturedPiecesDisplay(stats)
+    private fun updateScores(red: Int, black: Int) {
+        redScoreText.text = getString(R.string.score_label, red)
+        blackScoreText.text = getString(R.string.score_label, black)
     }
 
-    private fun updateCapturedPiecesDisplay(stats: GameController.GameStats) {
-        updateCapturedRow(blackCapturedLayout, stats.redCapturedPieces)
-        updateCapturedRow(redCapturedLayout, stats.blackCapturedPieces)
+    private fun updateGameStats(stats: GameController.GameStats) {
+        updateScores(stats.redScore, stats.blackScore)
+        gameTimeText.text = formatTime(stats.gameTime)
+        moveCountText.text = getString(R.string.round_label, stats.moveNumber)
+        updateMoveHistory()
+        // Each card shows the pieces its side has taken.
+        updateCapturedRow(redCapturedLayout, stats.redCapturedPieces)
+        updateCapturedRow(blackCapturedLayout, stats.blackCapturedPieces)
     }
 
     private fun updateCapturedRow(container: LinearLayout, pieces: List<Piece>) {
@@ -364,20 +367,20 @@ class MainActivity : AppCompatActivity() {
                 textSize = 11f
                 typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
                 setTextColor(
-                    if (piece.color == PieceColor.RED) Color.rgb(170, 20, 20)
-                    else Color.rgb(40, 40, 40)
+                    ContextCompat.getColor(
+                        this@MainActivity,
+                        if (piece.color == PieceColor.RED) R.color.chess_piece_red_ink else R.color.chess_piece_black_ink
+                    )
                 )
-                gravity = android.view.Gravity.CENTER
+                gravity = Gravity.CENTER
                 layoutParams = LinearLayout.LayoutParams(size, size).apply {
                     marginEnd = (2 * dp).toInt()
                 }
-                // Mini piece circle background
-                val bg = android.graphics.drawable.GradientDrawable().apply {
-                    shape = android.graphics.drawable.GradientDrawable.OVAL
-                    setColor(Color.rgb(235, 220, 195))
-                    setStroke((1 * dp).toInt(), Color.rgb(140, 110, 70))
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(ContextCompat.getColor(this@MainActivity, R.color.chess_captured_bg))
+                    setStroke((1 * dp).toInt(), ContextCompat.getColor(this@MainActivity, R.color.chess_captured_stroke))
                 }
-                background = bg
             }
             container.addView(tv)
         }
@@ -408,88 +411,36 @@ class MainActivity : AppCompatActivity() {
         val hours = totalSeconds / 3600
         val minutes = (totalSeconds % 3600) / 60
         val seconds = totalSeconds % 60
-
         return if (hours > 0) {
-            String.format("%d:%02d:%02d", hours, minutes, seconds)
+            String.format(Locale.US, "%d:%02d:%02d", hours, minutes, seconds)
         } else {
-            String.format("%02d:%02d", minutes, seconds)
+            String.format(Locale.US, "%02d:%02d", minutes, seconds)
         }
     }
 
     private fun updateMoveHistory() {
         val moves = gameController.getMoveHistory()
         if (moves.isEmpty()) {
-            moveHistoryText.text = "棋谱:"
+            moveHistoryText.text = getString(R.string.history_empty)
             return
         }
 
-        val history = StringBuilder("棋谱:\n")
-        moves.forEachIndexed { index, move ->
+        val history = StringBuilder()
+        val notations = MoveNotation.formatAll(moves, gameController.getInitialBoard())
+        moves.forEachIndexed { index, _ ->
             val moveNum = index / 2 + 1
-            val formattedMove = formatMove(move)
-
             if (index % 2 == 0) {
-                history.append(String.format("%2d. %-8s", moveNum, formattedMove))
+                history.append(String.format(Locale.US, "%2d. %s", moveNum, notations[index]))
             } else {
-                history.append(String.format("%-8s\n", formattedMove))
+                history.append("    ").append(notations[index]).append('\n')
             }
         }
-
-        if (moves.size % 2 == 1) {
-            history.append("\n")
-        }
+        if (moves.size % 2 == 1) history.append('\n')
 
         moveHistoryText.text = history.toString()
-
         moveHistoryText.post {
-            val scrollView = moveHistoryText.parent as? android.widget.ScrollView
-            scrollView?.fullScroll(android.view.View.FOCUS_DOWN)
+            (moveHistoryText.parent as? ScrollView)?.fullScroll(View.FOCUS_DOWN)
         }
-    }
-
-    private fun formatMove(move: com.yingwang.chinesechess.model.Move): String {
-        val isRed = move.piece.color == PieceColor.RED
-        val pieceChar = move.piece.type.getDisplayName(move.piece.color)
-
-        val columnNotation = if (isRed) {
-            arrayOf("九", "八", "七", "六", "五", "四", "三", "二", "一")[move.from.col]
-        } else {
-            (move.from.col + 1).toString()
-        }
-
-        val rowDiff = move.to.row - move.from.row
-        val colDiff = move.to.col - move.from.col
-
-        val (direction, steps) = when {
-            rowDiff == 0 -> {
-                val destCol = if (isRed) {
-                    arrayOf("九", "八", "七", "六", "五", "四", "三", "二", "一")[move.to.col]
-                } else {
-                    (move.to.col + 1).toString()
-                }
-                "平" to destCol
-            }
-            (isRed && rowDiff < 0) || (!isRed && rowDiff > 0) -> {
-                val stepCount = Math.abs(rowDiff)
-                val stepNotation = if (isRed) {
-                    arrayOf("", "一", "二", "三", "四", "五", "六", "七", "八", "九")[stepCount]
-                } else {
-                    stepCount.toString()
-                }
-                "进" to stepNotation
-            }
-            else -> {
-                val stepCount = Math.abs(rowDiff)
-                val stepNotation = if (isRed) {
-                    arrayOf("", "一", "二", "三", "四", "五", "六", "七", "八", "九")[stepCount]
-                } else {
-                    stepCount.toString()
-                }
-                "退" to stepNotation
-            }
-        }
-
-        return "$pieceChar$columnNotation$direction$steps"
     }
 
     private fun startTimerUpdates() {
@@ -502,68 +453,97 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateGameModeDisplay() {
-        val modeText = when {
-            gameController.isInReplayMode() -> "棋谱回放"
-            gameController.isEndgameMode() -> "残局练习"
-            else -> when (gameController.getGameMode()) {
-                GameController.GameMode.PLAYER_VS_PLAYER -> "玩家 vs 玩家"
-                GameController.GameMode.PLAYER_VS_AI -> {
-                    val playerColor = if (gameController.getAIColor() == PieceColor.RED) "黑" else "红"
-                    "玩家(${playerColor}) vs AI"
-                }
-                GameController.GameMode.AI_VS_AI -> "AI vs AI"
-            }
+    private fun difficultyShortName(): String =
+        resources.getStringArray(R.array.difficulty_short)[gameController.getDifficulty().ordinal]
+
+    /** Short caption for the header. */
+    private fun modeCaption(): String = when {
+        gameController.isInReplayMode() -> getString(R.string.mode_replay)
+        gameController.isEndgameMode() -> getString(R.string.mode_endgame)
+        else -> when (gameController.getGameMode()) {
+            GameMode.PLAYER_VS_PLAYER -> getString(R.string.mode_pvp)
+            GameMode.PLAYER_VS_AI -> getString(R.string.mode_pvai, difficultyShortName())
+            GameMode.AI_VS_AI -> getString(R.string.mode_aivai)
         }
-        gameModeText.text = modeText
     }
+
+    /** Full description for the exported record. */
+    private fun modeDescription(): String = when {
+        gameController.isInReplayMode() -> getString(R.string.mode_replay_long)
+        gameController.isEndgameMode() -> getString(R.string.mode_endgame_long)
+        else -> when (gameController.getGameMode()) {
+            GameMode.PLAYER_VS_PLAYER -> getString(R.string.mode_pvp_long)
+            GameMode.PLAYER_VS_AI -> {
+                val playerColor = getString(
+                    if (gameController.getAIColor() == PieceColor.RED) R.string.black_short else R.string.red_short
+                )
+                getString(R.string.mode_pvai_long, playerColor, difficultyShortName())
+            }
+            GameMode.AI_VS_AI -> getString(R.string.mode_aivai_long)
+        }
+    }
+
+    private fun updateGameModeDisplay() {
+        gameModeText.text = modeCaption()
+        val (redRole, blackRole) = when (gameController.getGameMode()) {
+            GameMode.PLAYER_VS_PLAYER -> R.string.role_player to R.string.role_player
+            GameMode.AI_VS_AI -> R.string.role_ai to R.string.role_ai
+            GameMode.PLAYER_VS_AI ->
+                if (gameController.getAIColor() == PieceColor.RED) R.string.role_ai to R.string.role_player
+                else R.string.role_player to R.string.role_ai
+        }
+        redRoleText.setText(redRole)
+        blackRoleText.setText(blackRole)
+        updateStatus()
+    }
+
+    // ── Dialogs ──
 
     private fun showNewGameDialog() {
         val modes = arrayOf(
-            "我执红先手 vs AI",
-            "我执黑后手 vs AI",
-            "双人对战",
-            "AI vs AI (观战)",
-            "残局练习"
+            getString(R.string.play_red_vs_ai),
+            getString(R.string.play_black_vs_ai),
+            getString(R.string.two_players),
+            getString(R.string.watch_ai),
+            getString(R.string.endgame_practice)
         )
 
         AlertDialog.Builder(this, R.style.ChessDialogTheme)
-            .setTitle("选择游戏模式")
+            .setTitle(R.string.mode_select_title)
             .setAdapter(styledListAdapter(modes)) { _, which ->
                 when (which) {
                     0 -> {
-                        gameController.setGameMode(GameController.GameMode.PLAYER_VS_AI, PieceColor.BLACK)
+                        gameController.setGameMode(GameMode.PLAYER_VS_AI, PieceColor.BLACK)
                         showDifficultyDialog()
                     }
                     1 -> {
-                        gameController.setGameMode(GameController.GameMode.PLAYER_VS_AI, PieceColor.RED)
+                        gameController.setGameMode(GameMode.PLAYER_VS_AI, PieceColor.RED)
                         showDifficultyDialog()
                     }
                     2 -> {
-                        gameController.setGameMode(GameController.GameMode.PLAYER_VS_PLAYER)
+                        gameController.setGameMode(GameMode.PLAYER_VS_PLAYER)
                         gameController.startNewGame()
                         updateGameModeDisplay()
                     }
                     3 -> {
-                        gameController.setGameMode(GameController.GameMode.AI_VS_AI)
+                        gameController.setGameMode(GameMode.AI_VS_AI)
                         showDifficultyDialog()
                     }
-                    4 -> {
-                        showEndgameDialog()
-                    }
+                    4 -> showEndgameDialog()
                 }
             }
             .show()
     }
 
     private fun showEndgameDialog() {
-        val names = EndgamePositions.positions.map { "${it.name} - ${it.description}" }.toTypedArray()
+        val names = EndgamePositions.positions
+            .map { getString(R.string.endgame_item, it.name, it.description) }
+            .toTypedArray()
 
         AlertDialog.Builder(this, R.style.ChessDialogTheme)
-            .setTitle("选择残局")
+            .setTitle(R.string.endgame_select_title)
             .setAdapter(styledListAdapter(names)) { _, which ->
-                val position = EndgamePositions.positions[which]
-                gameController.startEndgamePosition(position)
+                gameController.startEndgamePosition(EndgamePositions.positions[which])
                 updateGameModeDisplay()
             }
             .show()
@@ -571,11 +551,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun showReplayControls() {
         val dialog = AlertDialog.Builder(this, R.style.ChessDialogTheme)
-            .setTitle("棋谱回放")
+            .setTitle(R.string.replay_title)
             .setMessage(gameController.getReplayInfo())
-            .setPositiveButton("下一步") { _, _ -> }
-            .setNegativeButton("上一步") { _, _ -> }
-            .setNeutralButton("退出回放") { _, _ ->
+            .setPositiveButton(R.string.replay_next) { _, _ -> }
+            .setNegativeButton(R.string.replay_prev) { _, _ -> }
+            .setNeutralButton(R.string.replay_exit) { _, _ ->
                 gameController.exitReplayMode()
                 updateGameModeDisplay()
             }
@@ -584,52 +564,37 @@ class MainActivity : AppCompatActivity() {
 
         dialog.show()
 
-        // Override button behaviors to prevent auto-dismiss
+        // Override button behaviours to prevent auto-dismiss
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             if (gameController.replayStepForward()) {
                 dialog.setMessage(gameController.getReplayInfo())
             } else {
-                Toast.makeText(this, "已到最后一步", Toast.LENGTH_SHORT).show()
+                toast(R.string.replay_at_end)
             }
         }
         dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener {
             if (gameController.replayStepBack()) {
                 dialog.setMessage(gameController.getReplayInfo())
             } else {
-                Toast.makeText(this, "已到第一步", Toast.LENGTH_SHORT).show()
+                toast(R.string.replay_at_start)
             }
         }
     }
 
+    /** Picks a difficulty, rebuilds the controller with it and starts a fresh game in the current mode. */
     private fun showDifficultyDialog() {
-        val difficulties = arrayOf(
-            "初级 (Beginner)",
-            "中级 (Intermediate)",
-            "高级 (Advanced)",
-            "专业 (Professional)",
-            "大师 (Master)",
-            "棋圣 (Grandmaster)"
-        )
-
+        val difficulties = resources.getStringArray(R.array.difficulty_names)
         val currentMode = gameController.getGameMode()
         val currentAIColor = gameController.getAIColor()
 
         AlertDialog.Builder(this, R.style.ChessDialogTheme)
-            .setTitle("选择AI难度")
+            .setTitle(R.string.difficulty_title)
             .setAdapter(styledListAdapter(difficulties)) { _, which ->
-                val difficulty = when (which) {
-                    0 -> AIDifficulty.BEGINNER
-                    1 -> AIDifficulty.INTERMEDIATE
-                    2 -> AIDifficulty.ADVANCED
-                    3 -> AIDifficulty.PROFESSIONAL
-                    4 -> AIDifficulty.MASTER
-                    5 -> AIDifficulty.GRANDMASTER
-                    else -> AIDifficulty.PROFESSIONAL
-                }
+                val difficulty = AIDifficulty.values().getOrElse(which) { AIDifficulty.PROFESSIONAL }
 
                 gameController.destroy()
-                gameController = GameController(this@MainActivity, difficulty)
-                setupGameController()
+                gameController = GameController(this@MainActivity, difficulty, audioManager)
+                setupGameControllerCallbacks()
 
                 gameController.setGameMode(currentMode, currentAIColor)
                 gameController.startNewGame()
@@ -638,69 +603,25 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.main_menu, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_new_game -> {
-                showNewGameDialog()
-                true
-            }
-            R.id.action_undo -> {
-                gameController.undoLastMove()
-                true
-            }
-            R.id.action_endgame -> {
-                showEndgameDialog()
-                true
-            }
-            R.id.action_replay -> {
-                if (gameController.isInReplayMode()) {
-                    gameController.exitReplayMode()
-                    updateGameModeDisplay()
-                    Toast.makeText(this, "退出回放模式", Toast.LENGTH_SHORT).show()
-                } else if (gameController.enterReplayMode()) {
-                    updateGameModeDisplay()
-                    showReplayControls()
-                } else {
-                    Toast.makeText(this, "没有可回放的棋谱", Toast.LENGTH_SHORT).show()
-                }
-                true
-            }
-            R.id.action_mute -> {
-                isMuted = !isMuted
-                gameController.setSoundEnabled(!isMuted)
-                audioManager.setMuted(isMuted)
-                if (isMuted) audioManager.pauseBackgroundMusic()
-                else audioManager.startBackgroundMusic()
-                Toast.makeText(this, if (isMuted) "已静音" else "已开启音效", Toast.LENGTH_SHORT).show()
-                true
-            }
-            R.id.action_stats -> {
-                showStatsDialog()
-                true
-            }
-            R.id.action_export -> {
-                exportMoveHistory()
-                true
-            }
-            R.id.action_about -> {
-                showAboutDialog()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
+    private fun changeDifficulty() {
+        if (gameController.getMoveHistory().isEmpty()) {
+            showDifficultyDialog()
+            return
         }
+        AlertDialog.Builder(this, R.style.ChessDialogTheme)
+            .setTitle(R.string.difficulty_restart_title)
+            .setMessage(R.string.difficulty_restart_message)
+            .setPositiveButton(R.string.ok) { _, _ -> showDifficultyDialog() }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
-    private fun styledListAdapter(items: Array<String>): android.widget.ListAdapter {
-        return object : android.widget.ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, items) {
-            override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
+    private fun styledListAdapter(items: Array<String>): ListAdapter {
+        return object : ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, items) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
                 val view = super.getView(position, convertView, parent)
                 (view as? TextView)?.apply {
-                    setTextColor(Color.rgb(240, 224, 192))
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.chess_text))
                     textSize = 16f
                     typeface = Typeface.create(Typeface.SERIF, Typeface.NORMAL)
                     setBackgroundColor(Color.TRANSPARENT)
@@ -711,87 +632,87 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showMoreDialog() {
-        val muteLabel = if (isMuted) "取消静音" else "静音"
         val items = arrayOf(
-            muteLabel,
-            "导出棋谱",
-            "我的战绩",
-            "残局练习",
-            "棋谱回放",
-            "关于"
+            getString(if (isMuted) R.string.unmute else R.string.mute),
+            getString(R.string.change_difficulty),
+            getString(R.string.export),
+            getString(R.string.my_stats),
+            getString(R.string.replay_title),
+            getString(R.string.about)
         )
 
         AlertDialog.Builder(this, R.style.ChessDialogTheme)
-            .setTitle("更多")
+            .setTitle(R.string.more)
             .setAdapter(styledListAdapter(items)) { _, which ->
                 when (which) {
-                    0 -> { // 静音
-                        isMuted = !isMuted
-                        gameController.setSoundEnabled(!isMuted)
-                        audioManager.setMuted(isMuted)
-                        if (isMuted) audioManager.pauseBackgroundMusic()
-                        else audioManager.startBackgroundMusic()
-                        Toast.makeText(this, if (isMuted) "已静音" else "已开启音效", Toast.LENGTH_SHORT).show()
-                    }
-                    1 -> exportMoveHistory()
-                    2 -> showStatsDialog()
-                    3 -> showEndgameDialog()
-                    4 -> { // 棋谱回放
-                        if (gameController.isInReplayMode()) {
-                            gameController.exitReplayMode()
-                            updateGameModeDisplay()
-                            Toast.makeText(this, "退出回放模式", Toast.LENGTH_SHORT).show()
-                        } else if (gameController.enterReplayMode()) {
-                            updateGameModeDisplay()
-                            showReplayControls()
-                        } else {
-                            Toast.makeText(this, "没有可回放的棋谱", Toast.LENGTH_SHORT).show()
-                        }
-                    }
+                    0 -> toggleMute()
+                    1 -> changeDifficulty()
+                    2 -> exportMoveHistory()
+                    3 -> showStatsDialog()
+                    4 -> toggleReplay()
                     5 -> showAboutDialog()
                 }
             }
             .show()
     }
 
+    private fun toggleReplay() {
+        if (gameController.isInReplayMode()) {
+            gameController.exitReplayMode()
+            updateGameModeDisplay()
+            toast(R.string.replay_exited)
+        } else if (gameController.enterReplayMode()) {
+            updateGameModeDisplay()
+            showReplayControls()
+        } else {
+            toast(R.string.replay_none)
+        }
+    }
+
+    private fun toggleMute() {
+        isMuted = !isMuted
+        settings.edit().putBoolean("muted", isMuted).apply()
+        audioManager.setMuted(isMuted)
+        toast(if (isMuted) R.string.muted_toast else R.string.unmuted_toast)
+    }
+
     private fun showStatsDialog() {
         val stats = RatingSystem.getStats(this)
         AlertDialog.Builder(this, R.style.ChessDialogTheme)
-            .setTitle("我的战绩")
-            .setMessage("""
-                等级: ${stats.rankTitle}
-                积分: ${stats.rating}
-
-                总局数: ${stats.games}
-                胜: ${stats.wins}  负: ${stats.losses}  平: ${stats.draws}
-                胜率: ${stats.winRate}
-            """.trimIndent())
-            .setPositiveButton("确定", null)
+            .setTitle(R.string.my_stats)
+            .setMessage(
+                getString(
+                    R.string.stats_message,
+                    stats.rankTitle, stats.rating, stats.games,
+                    stats.wins, stats.losses, stats.draws, stats.winRate
+                )
+            )
+            .setPositiveButton(R.string.ok, null)
             .show()
     }
 
     private fun exportMoveHistory() {
         val moves = gameController.getMoveHistory()
         if (moves.isEmpty()) {
-            Toast.makeText(this, "没有棋谱可导出", Toast.LENGTH_SHORT).show()
+            toast(R.string.export_none)
             return
         }
 
         val sb = StringBuilder()
-        sb.appendLine("中国象棋棋谱")
-        sb.appendLine("日期: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date())}")
-        sb.appendLine("模式: ${gameModeText.text}")
-        sb.appendLine("回合数: ${moves.size}")
+        sb.appendLine(getString(R.string.export_title))
+        sb.appendLine(getString(R.string.export_date, SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())))
+        sb.appendLine(getString(R.string.export_mode, modeDescription()))
+        sb.appendLine(getString(R.string.export_moves, moves.size))
         sb.appendLine("─".repeat(30))
         sb.appendLine()
 
-        moves.forEachIndexed { index, move ->
+        val notations = MoveNotation.formatAll(moves, gameController.getInitialBoard())
+        moves.forEachIndexed { index, _ ->
             val moveNum = index / 2 + 1
-            val formatted = formatMove(move)
             if (index % 2 == 0) {
-                sb.append(String.format("%2d. %-10s", moveNum, formatted))
+                sb.append(String.format(Locale.US, "%2d. %-10s", moveNum, notations[index]))
             } else {
-                sb.appendLine(String.format("%-10s", formatted))
+                sb.appendLine(String.format(Locale.US, "%-10s", notations[index]))
             }
         }
         if (moves.size % 2 == 1) sb.appendLine()
@@ -801,47 +722,35 @@ class MainActivity : AppCompatActivity() {
 
         val board = gameController.getCurrentBoard()
         val result = when {
-            board.isCheckmate() -> {
-                val winner = if (board.currentPlayer == PieceColor.RED) "黑方" else "红方"
-                "$winner 获胜"
-            }
-            board.isStalemate() -> "和棋"
-            else -> "未结束"
+            board.isCheckmate() -> getString(R.string.wins_short, sideName(board.currentPlayer.opposite()))
+            board.isStalemate() -> getString(R.string.draw_short)
+            else -> getString(R.string.result_unfinished)
         }
-        sb.appendLine("结果: $result")
+        sb.appendLine(getString(R.string.export_result, result))
 
-        val text = sb.toString()
-
-        // Share via Android share sheet
-        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+        val intent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
-            putExtra(android.content.Intent.EXTRA_SUBJECT, "中国象棋棋谱")
-            putExtra(android.content.Intent.EXTRA_TEXT, text)
+            putExtra(Intent.EXTRA_SUBJECT, getString(R.string.export_title))
+            putExtra(Intent.EXTRA_TEXT, sb.toString())
         }
-        startActivity(android.content.Intent.createChooser(intent, "导出棋谱"))
+        startActivity(Intent.createChooser(intent, getString(R.string.export)))
     }
 
     private fun showAboutDialog() {
         val verName = try {
-            packageManager.getPackageInfo(packageName, 0).versionName ?: "v2.2.0"
+            packageManager.getPackageInfo(packageName, 0).versionName ?: ""
         } catch (_: Exception) {
-            "v2.2.0"
+            ""
         }
         AlertDialog.Builder(this, R.style.ChessDialogTheme)
-            .setTitle("关于中国象棋")
-            .setMessage("""
-                中国象棋 $verName
-
-                专业级AI引擎特性:
-                • Pikafish NNUE 强力深度博弈
-                • 置换表与静态搜索
-                • 走法排序与静止搜索优化
-                • 动态 ELO 积分天梯系统
-
-                ${gameController.getAIStats()}
-            """.trimIndent())
-            .setPositiveButton("确定", null)
+            .setTitle(R.string.about_title)
+            .setMessage(getString(R.string.about_body, verName, gameController.getAIStats()))
+            .setPositiveButton(R.string.ok, null)
             .show()
+    }
+
+    private fun toast(resId: Int) {
+        Toast.makeText(this, resId, Toast.LENGTH_SHORT).show()
     }
 
     override fun onDestroy() {

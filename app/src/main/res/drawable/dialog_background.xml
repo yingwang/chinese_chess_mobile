@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#4A2E1B" />
-    <stroke android:width="1.5dp" android:color="#8B5A2B" />
+    <solid android:color="@color/chess_dialog_bg" />
+    <stroke android:width="1.5dp" android:color="@color/chess_dialog_stroke" />
     <corners android:radius="16dp" />
 </shape>

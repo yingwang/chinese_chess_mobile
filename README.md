@@ -101,6 +101,15 @@ cd chinese_chess_mobile
 ./gradlew installDebug
 ```
 
+Release builds read the signing key from `keystore.properties` in the repository root (gitignored), or from the `CHESS_KEYSTORE`, `CHESS_KEYSTORE_PASSWORD`, `CHESS_KEY_ALIAS` and `CHESS_KEY_PASSWORD` environment variables:
+
+```properties
+storeFile=../chess-release.keystore
+storePassword=...
+keyAlias=chess
+keyPassword=...
+```
+
 ## Architecture / 项目结构
 
 ```

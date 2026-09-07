@@ -2,29 +2,40 @@ package com.yingwang.chinesechess.audio
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.SoundPool
+import android.media.ToneGenerator
+import com.yingwang.chinesechess.R
 
 /**
- * Manages game audio including sound effects and background music
+ * The one audio object in the app: move and capture samples, tone fallbacks for check and
+ * game over, and the looping guqin. MainActivity owns it and hands it to GameController,
+ * so the controller no longer keeps a second SoundPool of the same two samples.
  */
 class GameAudioManager(private val context: Context) {
 
     private var soundPool: SoundPool? = null
+    private var toneGenerator: ToneGenerator? = null
     private var backgroundMusicPlayer: MediaPlayer? = null
 
-    private var moveSoundId: Int = 0
-    private var captureSoundId: Int = 0
+    private var moveSoundId = 0
+    private var captureSoundId = 0
 
     private var isSoundEnabled = true
     private var isMusicEnabled = true
 
-    private var musicVolume = 0.3f // Lower volume for background music
-    private var soundVolume = 0.7f // Higher volume for sound effects
+    private var musicVolume = 0.3f
+    private var soundVolume = 0.7f
 
     init {
         initializeSoundPool()
         initializeBackgroundMusic()
+        toneGenerator = try {
+            ToneGenerator(AudioManager.STREAM_MUSIC, 50)
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun initializeSoundPool() {
@@ -38,14 +49,13 @@ class GameAudioManager(private val context: Context) {
             .setAudioAttributes(audioAttributes)
             .build()
 
-        // Load sound effects
-        moveSoundId = soundPool?.load(context, com.yingwang.chinesechess.R.raw.move_piece, 1) ?: 0
-        captureSoundId = soundPool?.load(context, com.yingwang.chinesechess.R.raw.capture_piece, 1) ?: 0
+        moveSoundId = soundPool?.load(context, R.raw.move_piece, 1) ?: 0
+        captureSoundId = soundPool?.load(context, R.raw.capture_piece, 1) ?: 0
     }
 
     private fun initializeBackgroundMusic() {
         try {
-            backgroundMusicPlayer = MediaPlayer.create(context, com.yingwang.chinesechess.R.raw.background_music)
+            backgroundMusicPlayer = MediaPlayer.create(context, R.raw.background_music)
             backgroundMusicPlayer?.apply {
                 isLooping = true
                 setVolume(musicVolume, musicVolume)
@@ -56,15 +66,27 @@ class GameAudioManager(private val context: Context) {
     }
 
     fun playMoveSound() {
-        if (isSoundEnabled) {
-            soundPool?.play(moveSoundId, soundVolume, soundVolume, 1, 0, 1f)
-        }
+        if (!isSoundEnabled) return
+        if (moveSoundId != 0) soundPool?.play(moveSoundId, soundVolume, soundVolume, 1, 0, 1f)
+        else toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP, 80)
     }
 
     fun playCaptureSound() {
-        if (isSoundEnabled) {
-            soundPool?.play(captureSoundId, soundVolume, soundVolume, 1, 0, 1f)
-        }
+        if (!isSoundEnabled) return
+        if (captureSoundId != 0) soundPool?.play(captureSoundId, soundVolume, soundVolume, 1, 0, 1f)
+        else toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP, 100)
+    }
+
+    /** No sample shipped for check; a short alert tone stands in. */
+    fun playCheckSound() {
+        if (!isSoundEnabled) return
+        toneGenerator?.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 150)
+    }
+
+    /** No sample shipped for game over either. */
+    fun playGameOverSound() {
+        if (!isSoundEnabled) return
+        toneGenerator?.startTone(ToneGenerator.TONE_CDMA_ABBR_ALERT, 200)
     }
 
     fun startBackgroundMusic() {
@@ -79,46 +101,19 @@ class GameAudioManager(private val context: Context) {
         }
     }
 
-    fun stopBackgroundMusic() {
-        backgroundMusicPlayer?.apply {
-            if (isPlaying) {
-                stop()
-                prepare()
-            }
-        }
-    }
-
-    fun setSoundEnabled(enabled: Boolean) {
-        isSoundEnabled = enabled
-    }
-
     fun setMuted(muted: Boolean) {
         isSoundEnabled = !muted
         isMusicEnabled = !muted
+        if (muted) pauseBackgroundMusic() else startBackgroundMusic()
     }
 
-    fun setMusicEnabled(enabled: Boolean) {
-        isMusicEnabled = enabled
-        if (!enabled) {
-            pauseBackgroundMusic()
-        } else {
-            startBackgroundMusic()
-        }
-    }
-
-    fun setSoundVolume(volume: Float) {
-        soundVolume = volume.coerceIn(0f, 1f)
-    }
-
-    fun setMusicVolume(volume: Float) {
-        musicVolume = volume.coerceIn(0f, 1f)
-        backgroundMusicPlayer?.setVolume(musicVolume, musicVolume)
-    }
+    fun isMuted(): Boolean = !isSoundEnabled
 
     fun release() {
         soundPool?.release()
         soundPool = null
-
+        toneGenerator?.release()
+        toneGenerator = null
         backgroundMusicPlayer?.release()
         backgroundMusicPlayer = null
     }

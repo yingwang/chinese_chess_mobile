@@ -1,13 +1,120 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">中国象棋</string>
+
+    <!-- Bottom bar -->
     <string name="new_game">新游戏</string>
+    <string name="hint">提示</string>
     <string name="undo">悔棋</string>
-    <string name="red_turn">红方走棋</string>
-    <string name="black_turn">黑方走棋</string>
-    <string name="ai_thinking">AI思考中…</string>
+    <string name="more">更多</string>
+
+    <!-- Header -->
+    <string name="red_side">红方</string>
+    <string name="black_side">黑方</string>
+    <string name="red_short">红</string>
+    <string name="black_short">黑</string>
+    <string name="role_player">玩家</string>
+    <string name="role_ai">AI</string>
+    <string name="score_label">得分 %1$d</string>
+    <string name="round_label">回合 %1$d</string>
+    <string name="history_empty">棋谱</string>
+
+    <!-- Mode captions: short for the header, long for exports -->
+    <string name="mode_pvp">双人</string>
+    <string name="mode_pvai">人机 · %1$s</string>
+    <string name="mode_aivai">AI 对 AI</string>
+    <string name="mode_endgame">残局</string>
+    <string name="mode_replay">回放</string>
+    <string name="mode_pvp_long">玩家 vs 玩家</string>
+    <string name="mode_pvai_long">玩家(%1$s) vs AI · %2$s</string>
+    <string name="mode_aivai_long">AI vs AI</string>
+    <string name="mode_endgame_long">残局练习</string>
+    <string name="mode_replay_long">棋谱回放</string>
+
+    <!-- Status line -->
+    <string name="side_to_move">%1$s走棋</string>
+    <string name="in_check">%1$s将军！</string>
+    <string name="wins">%1$s获胜！</string>
+    <string name="wins_short">%1$s获胜</string>
+    <string name="draw">和棋！</string>
+    <string name="draw_short">和棋</string>
+    <string name="ai_thinking">AI 思考中</string>
+    <string name="perpetual_check_loss">长将判负，%1$s获胜！</string>
+    <string name="repetition_draw">三次重复局面，和棋！</string>
+    <string name="rating_summary">\n\n积分: %1$s (%2$s)\n等级: %3$s</string>
     <string name="game_over">游戏结束</string>
-    <string name="checkmate">将军！</string>
-    <string name="stalemate">和棋</string>
+
+    <!-- Toasts and snackbars -->
+    <string name="not_your_turn">不是你的回合</string>
+    <string name="illegal_move">非法移动</string>
+    <string name="replay_blocked">回放模式中，不能走棋</string>
+    <string name="hint_suggest">建议走 %1$s</string>
+    <string name="hint_unavailable">无法提供建议</string>
+    <string name="undo_none">没有可以悔的棋</string>
+    <string name="undo_done">已悔棋</string>
+    <string name="muted_toast">已静音</string>
+    <string name="unmuted_toast">已开启音效</string>
+
+    <!-- Dialogs -->
+    <string name="ok">确定</string>
+    <string name="cancel">取消</string>
+    <string name="resume_title">继续游戏</string>
+    <string name="resume_message">发现上次未完成的棋局，是否继续？</string>
+    <string name="resume_continue">继续</string>
+    <string name="undo_confirm_title">确认悔棋</string>
+    <string name="undo_confirm_message">确定要悔棋吗？</string>
+    <string name="mode_select_title">选择游戏模式</string>
+    <string name="play_red_vs_ai">我执红先手 vs AI</string>
+    <string name="play_black_vs_ai">我执黑后手 vs AI</string>
+    <string name="two_players">双人对战</string>
+    <string name="watch_ai">AI vs AI (观战)</string>
+    <string name="endgame_practice">残局练习</string>
+    <string name="endgame_select_title">选择残局</string>
+    <string name="endgame_item">%1$s - %2$s</string>
+    <string name="difficulty_title">选择 AI 难度</string>
+    <string name="difficulty_restart_title">更换难度</string>
+    <string name="difficulty_restart_message">更换难度会重新开始当前棋局，继续吗？</string>
+    <string name="change_difficulty">AI 难度</string>
+    <string name="replay_title">棋谱回放</string>
+    <string name="replay_progress">第 %1$d / %2$d 步</string>
+    <string name="replay_next">下一步</string>
+    <string name="replay_prev">上一步</string>
+    <string name="replay_exit">退出回放</string>
+    <string name="replay_at_end">已到最后一步</string>
+    <string name="replay_at_start">已到第一步</string>
+    <string name="replay_exited">已退出回放</string>
+    <string name="replay_none">没有可回放的棋谱</string>
+    <string name="mute">静音</string>
+    <string name="unmute">取消静音</string>
+    <string name="export">导出棋谱</string>
+    <string name="my_stats">我的战绩</string>
     <string name="about">关于</string>
+    <string name="stats_message">等级: %1$s\n积分: %2$d\n\n总局数: %3$d\n胜: %4$d  负: %5$d  平: %6$d\n胜率: %7$s</string>
+    <string name="export_none">没有棋谱可导出</string>
+    <string name="export_title">中国象棋棋谱</string>
+    <string name="export_date">日期: %1$s</string>
+    <string name="export_mode">模式: %1$s</string>
+    <string name="export_moves">回合数: %1$d</string>
+    <string name="export_result">结果: %1$s</string>
+    <string name="result_unfinished">未结束</string>
+    <string name="about_title">关于中国象棋</string>
+    <string name="about_body">中国象棋 %1$s\n\n专业级 AI 引擎特性:\n• Pikafish NNUE 强力深度博弈\n• 置换表与静态搜索\n• 走法排序与静止搜索优化\n• 动态 ELO 积分天梯系统\n\n%2$s</string>
+
+    <!-- Order matches GameController.AIDifficulty -->
+    <string-array name="difficulty_names">
+        <item>初级 (Beginner)</item>
+        <item>中级 (Intermediate)</item>
+        <item>高级 (Advanced)</item>
+        <item>专业 (Professional)</item>
+        <item>大师 (Master)</item>
+        <item>棋圣 (Grandmaster)</item>
+    </string-array>
+    <string-array name="difficulty_short">
+        <item>初级</item>
+        <item>中级</item>
+        <item>高级</item>
+        <item>专业</item>
+        <item>大师</item>
+        <item>棋圣</item>
+    </string-array>
 </resources>

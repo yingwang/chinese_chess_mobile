@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 玄青: slate ground, warm off-white text, celadon accents. -->
+    <color name="chess_bg">#1F2528</color>
+    <color name="chess_panel">#2A3134</color>
+    <color name="chess_panel_stroke">#3B4448</color>
+    <color name="chess_text">#E8E3DA</color>
+    <color name="chess_text_secondary">#A7A196</color>
+    <color name="chess_accent">#9CCFC8</color>
+    <color name="chess_on_accent">#10302C</color>
+    <color name="chess_red_side">#E4685A</color>
+    <color name="chess_black_side">#E8E3DA</color>
+    <color name="chess_timer">#E8E3DA</color>
+    <color name="chess_button_bg">#34413F</color>
+    <color name="chess_button_text">#E8E3DA</color>
+    <color name="chess_button_ripple">#33FFFFFF</color>
+    <color name="chess_dialog_bg">#2A3134</color>
+    <color name="chess_dialog_stroke">#46525A</color>
+    <color name="chess_dialog_title">#9CCFC8</color>
+    <color name="chess_history_text">#C9C3B8</color>
+    <color name="chess_turn_red">#E4685A</color>
+    <color name="chess_turn_black">#E8E3DA</color>
+    <color name="chess_card_bg">#2A3134</color>
+    <color name="chess_card_stroke">#3B4448</color>
+    <color name="chess_card_active_stroke">#9CCFC8</color>
+    <color name="chess_captured_bg">#EFE6D3</color>
+    <color name="chess_captured_stroke">#8E8266</color>
+    <color name="chess_piece_red_ink">#AA1414</color>
+    <color name="chess_piece_black_ink">#282828</color>
+
+    <!-- The board is drawn in code from these tokens; there is no photograph any more. -->
+    <color name="board_surface_light">#E9D0A2</color>
+    <color name="board_surface_mid">#DEBF88</color>
+    <color name="board_surface_dark">#D2AF74</color>
+    <color name="board_grain">#7A5230</color>
+    <color name="board_line">#4A2F18</color>
+    <color name="board_frame">#5A3B22</color>
+    <color name="board_frame_light">#96703F</color>
+    <color name="board_river">#6E4726</color>
+    <color name="board_coord">#6E4726</color>
+</resources>

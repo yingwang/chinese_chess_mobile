@@ -1,28 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Every colour comes from values/colors.xml, so a palette is one file. -->
     <style name="Theme.ChineseChess" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">#8B4513</item>
-        <item name="colorPrimaryDark">#3B2414</item>
-        <item name="colorAccent">#D4A860</item>
+        <item name="colorPrimary">@color/chess_accent</item>
+        <item name="colorPrimaryDark">@color/chess_bg</item>
+        <item name="colorAccent">@color/chess_accent</item>
+        <item name="colorSecondary">@color/chess_accent</item>
+        <item name="colorOnPrimary">@color/chess_on_accent</item>
+        <item name="colorSurface">@color/chess_panel</item>
+        <item name="colorOnSurface">@color/chess_text</item>
+        <item name="android:textColorPrimary">@color/chess_text</item>
+        <item name="android:textColorSecondary">@color/chess_text_secondary</item>
         <!-- Padding for the system bar insets is applied to android.R.id.content, whose
-             background is the window background, so this has to match the board backdrop or
-             the status bar strip renders white above a dark app. -->
-        <item name="android:windowBackground">#3B2414</item>
+             background is the window background, so this has to match the app ground or
+             the status bar strip renders in a different colour. -->
+        <item name="android:windowBackground">@color/chess_bg</item>
         <item name="android:alertDialogTheme">@style/ChessDialogTheme</item>
         <item name="materialAlertDialogTheme">@style/ChessDialogTheme</item>
         <item name="alertDialogTheme">@style/ChessDialogTheme</item>
+        <item name="snackbarStyle">@style/ChessSnackbar</item>
+        <item name="snackbarTextViewStyle">@style/ChessSnackbarText</item>
     </style>
 
     <style name="ChessDialogTheme" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
         <item name="android:windowBackground">@drawable/dialog_background</item>
         <item name="android:backgroundDimAmount">0.45</item>
-        <item name="android:textColor">#F0E0C0</item>
-        <item name="android:textColorPrimary">#F0E0C0</item>
-        <item name="android:textColorSecondary">#C0A880</item>
-        <item name="android:textColorAlertDialogListItem">#F0E0C0</item>
-        <item name="colorOnSurface">#F0E0C0</item>
-        <item name="colorSurface">#4A2E1B</item>
-        <item name="colorAccent">#D4A860</item>
+        <item name="android:textColor">@color/chess_text</item>
+        <item name="android:textColorPrimary">@color/chess_text</item>
+        <item name="android:textColorSecondary">@color/chess_text_secondary</item>
+        <item name="android:textColorAlertDialogListItem">@color/chess_text</item>
+        <item name="colorOnSurface">@color/chess_text</item>
+        <item name="colorSurface">@color/chess_dialog_bg</item>
+        <item name="colorAccent">@color/chess_accent</item>
+        <item name="colorPrimary">@color/chess_accent</item>
         <item name="android:windowTitleStyle">@style/ChessDialogTitle</item>
         <item name="buttonBarPositiveButtonStyle">@style/ChessDialogButton</item>
         <item name="buttonBarNegativeButtonStyle">@style/ChessDialogButton</item>
@@ -30,14 +40,46 @@
     </style>
 
     <style name="ChessDialogTitle" parent="TextAppearance.AppCompat.Title">
-        <item name="android:textColor">#D4A860</item>
+        <item name="android:textColor">@color/chess_dialog_title</item>
         <item name="android:textSize">20sp</item>
         <item name="android:fontFamily">serif</item>
     </style>
 
     <style name="ChessDialogButton" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
-        <item name="android:textColor">#D4A860</item>
+        <item name="android:textColor">@color/chess_accent</item>
         <item name="android:fontFamily">serif</item>
         <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- Bottom bar: icon over label, flat tonal ground. -->
+    <style name="Widget.Chess.Button" parent="Widget.MaterialComponents.Button.UnelevatedButton">
+        <item name="backgroundTint">@color/chess_button_bg</item>
+        <item name="android:textColor">@color/chess_button_text</item>
+        <item name="rippleColor">@color/chess_button_ripple</item>
+        <item name="cornerRadius">16dp</item>
+        <item name="android:fontFamily">serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:letterSpacing">0.06</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">8dp</item>
+        <item name="android:paddingStart">4dp</item>
+        <item name="android:paddingEnd">4dp</item>
+        <item name="iconGravity">top</item>
+        <item name="iconTint">@color/chess_button_text</item>
+        <item name="iconSize">22dp</item>
+        <item name="iconPadding">4dp</item>
+    </style>
+
+    <style name="ChessSnackbar" parent="Widget.MaterialComponents.Snackbar">
+        <item name="backgroundTint">@color/chess_text</item>
+    </style>
+
+    <style name="ChessSnackbarText" parent="Widget.MaterialComponents.Snackbar.TextView">
+        <item name="android:textColor">@color/chess_bg</item>
+        <item name="android:fontFamily">serif</item>
+        <item name="android:textSize">16sp</item>
     </style>
 </resources>

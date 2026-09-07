@@ -3,6 +3,7 @@ package com.yingwang.chinesechess
 import android.content.Context
 import android.util.Log
 import com.yingwang.chinesechess.ai.ChessAI
+import com.yingwang.chinesechess.audio.GameAudioManager
 import com.yingwang.chinesechess.ai.PikafishEngine
 import com.yingwang.chinesechess.model.*
 import kotlinx.coroutines.*
@@ -14,10 +15,12 @@ import org.json.JSONObject
  */
 class GameController(
     private val context: Context,
-    aiDifficulty: AIDifficulty = AIDifficulty.PROFESSIONAL
+    aiDifficulty: AIDifficulty = AIDifficulty.PROFESSIONAL,
+    private val audio: GameAudioManager
 ) {
     private val difficulty: AIDifficulty = aiDifficulty
-    private val soundManager = SoundManager(context)
+    /** Bumped whenever the position is reset, so a search finished against an old game is dropped. */
+    private var gameGeneration = 0
     enum class AIDifficulty(val pikafishDepth: Int) {
         BEGINNER(3),
         INTERMEDIATE(6),
@@ -86,6 +89,7 @@ class GameController(
     }
 
     fun startNewGame() {
+        gameGeneration++
         replayMode = false
         isEndgameMode = false
         board = Board.createInitialBoard()
@@ -111,6 +115,9 @@ class GameController(
 
     fun getCurrentBoard(): Board = board
 
+    /** Position the current game started from (standard, or an endgame study). */
+    fun getInitialBoard(): Board = initialBoard
+
     fun getMoveHistory(): List<Move> = moveHistory.toList()
 
     fun makePlayerMove(move: Move): Boolean {
@@ -124,9 +131,9 @@ class GameController(
 
         // Play appropriate sound
         if (move.capturedPiece != null) {
-            soundManager.playCaptureSound()
+            audio.playCaptureSound()
         } else {
-            soundManager.playMoveSound()
+            audio.playMoveSound()
         }
 
         // Update score and captured pieces if capturing
@@ -153,7 +160,7 @@ class GameController(
 
         // Check for check condition and play sound
         if (board.isInCheck(board.currentPlayer)) {
-            soundManager.playCheckSound()
+            audio.playCheckSound()
         }
 
         onBoardUpdated?.invoke(board)
@@ -201,72 +208,73 @@ class GameController(
 
         coroutineScope.launch {
             try {
-                val move = run {
-                    val engine = ensurePikafish()
-                    val depth = if (difficulty.pikafishDepth > 0) difficulty.pikafishDepth else 0
-                    val timeMs = if (depth == 0) 10000L else 0L  // 棋圣: 10s unlimited
-                    engine?.findBestMove(board, depth = depth, moveTimeMs = timeMs)
-                        ?: fallbackAI.findBestMove(board, moveHistory)
+                val generation = gameGeneration
+                val thinkStart = System.currentTimeMillis()
+                var move = searchBestMove(null)
+
+                // Would this be the third time the position appears? Search again with the
+                // repeating moves off the table instead of grabbing the first legal move.
+                if (move != null && wouldCauseRepetition(move)) {
+                    val safeMoves = board.getAllLegalMoves().filterNot { wouldCauseRepetition(it) }
+                    val alternative = searchBestMove(safeMoves)
+                    if (alternative != null) move = alternative
                 }
 
                 if (move != null) {
-                    // Avoid moves that would cause 3rd repetition (perpetual check = loss)
-                    var finalMove = move
-                    if (wouldCauseRepetition(move)) {
-                        val legalMoves = board.getAllLegalMoves()
-                        val safeMove = legalMoves.firstOrNull { !wouldCauseRepetition(it) }
-                        if (safeMove != null) finalMove = safeMove
-                    }
-
-                    // Play appropriate sound
-                    if (finalMove.capturedPiece != null) {
-                        soundManager.playCaptureSound()
-                    } else {
-                        soundManager.playMoveSound()
-                    }
-
-                    // Update score and captured pieces if capturing
-                    val captured = finalMove.capturedPiece
-                    if (captured != null) {
-                        val captureValue = captured.type.baseValue
-                        if (finalMove.piece.color == PieceColor.RED) {
-                            redScore += captureValue
-                            redCapturedPieces.add(captured)
-                        } else {
-                            blackScore += captureValue
-                            blackCapturedPieces.add(captured)
-                        }
-                    }
-
-                    // Request animation before mutating board state
-                    onMoveAnimationRequested?.invoke(finalMove, board.copy())
-
-                    board.makeMoveInPlace(finalMove)
-                    moveHistory.add(finalMove)
-                    positionHashes.add(board.getPositionHash())
-                    currentMoveStartTime = System.currentTimeMillis()
-
-                    // Check for check condition and play sound
-                    if (board.isInCheck(board.currentPlayer)) {
-                        soundManager.playCheckSound()
-                    }
-
-                    onBoardUpdated?.invoke(board)
-                    onMoveCompleted?.invoke(finalMove)
-                    updateStats()
-
-                    // Check game over
-                    if (!checkGameOver()) {
-                        // In AI vs AI mode, continue
-                        if (gameMode == GameMode.AI_VS_AI) {
-                            delay(500) // Brief pause for visualization
-                            makeAIMove()
-                        }
-                    }
+                    // A reply that lands the instant the player lifts a finger reads as a glitch;
+                    // hold it back so every AI move takes at least MIN_THINK_MS.
+                    val elapsed = System.currentTimeMillis() - thinkStart
+                    if (elapsed < MIN_THINK_MS) delay(MIN_THINK_MS - elapsed)
+                    if (generation == gameGeneration) applyAIMove(move)
                 }
             } finally {
                 onAIThinking?.invoke(false)
             }
+        }
+    }
+
+    /** Engine search, optionally restricted to [candidates]; null means every legal move. */
+    private suspend fun searchBestMove(candidates: List<Move>?): Move? {
+        if (candidates != null && candidates.isEmpty()) return null
+        val engine = ensurePikafish()
+        val depth = if (difficulty.pikafishDepth > 0) difficulty.pikafishDepth else 0
+        val timeMs = if (depth == 0) 10000L else 0L  // 棋圣: 10s unlimited
+        return engine?.findBestMove(board, depth = depth, moveTimeMs = timeMs, searchMoves = candidates)
+            ?: fallbackAI.findBestMove(board, moveHistory, allowedMoves = candidates)
+    }
+
+    private suspend fun applyAIMove(finalMove: Move) {
+        if (finalMove.capturedPiece != null) audio.playCaptureSound() else audio.playMoveSound()
+
+        val captured = finalMove.capturedPiece
+        if (captured != null) {
+            val captureValue = captured.type.baseValue
+            if (finalMove.piece.color == PieceColor.RED) {
+                redScore += captureValue
+                redCapturedPieces.add(captured)
+            } else {
+                blackScore += captureValue
+                blackCapturedPieces.add(captured)
+            }
+        }
+
+        // Request animation before mutating board state
+        onMoveAnimationRequested?.invoke(finalMove, board.copy())
+
+        board.makeMoveInPlace(finalMove)
+        moveHistory.add(finalMove)
+        positionHashes.add(board.getPositionHash())
+        currentMoveStartTime = System.currentTimeMillis()
+
+        if (board.isInCheck(board.currentPlayer)) audio.playCheckSound()
+
+        onBoardUpdated?.invoke(board)
+        onMoveCompleted?.invoke(finalMove)
+        updateStats()
+
+        if (!checkGameOver() && gameMode == GameMode.AI_VS_AI) {
+            delay(500) // Brief pause for visualization
+            makeAIMove()
         }
     }
 
@@ -280,13 +288,13 @@ class GameController(
     private fun checkGameOver(): Boolean {
         when {
             board.isCheckmate() -> {
-                soundManager.playGameOverSound()
+                audio.playGameOverSound()
                 val winner = board.currentPlayer.opposite()
                 onGameOver?.invoke(GameResult.Checkmate(winner))
                 return true
             }
             board.isStalemate() -> {
-                soundManager.playGameOverSound()
+                audio.playGameOverSound()
                 onGameOver?.invoke(GameResult.Stalemate)
                 return true
             }
@@ -296,7 +304,7 @@ class GameController(
         val currentHash = positionHashes.last()
         val count = positionHashes.count { it == currentHash }
         if (count >= 3) {
-            soundManager.playGameOverSound()
+            audio.playGameOverSound()
             if (board.isInCheck(board.currentPlayer)) {
                 // Current player is in check → opponent perpetually checking → opponent loses
                 val winner = board.currentPlayer
@@ -311,6 +319,7 @@ class GameController(
     }
 
     fun undoLastMove(): Boolean {
+        gameGeneration++
         if (moveHistory.isEmpty()) return false
 
         // In player vs AI mode, undo two moves (player and AI)
@@ -349,6 +358,7 @@ class GameController(
     }
 
     fun startEndgamePosition(position: EndgamePosition) {
+        gameGeneration++
         replayMode = false
         isEndgameMode = true
         board = Board.createFromPieces(position.pieces, position.firstPlayer)
@@ -382,6 +392,7 @@ class GameController(
     }
 
     fun exitReplayMode() {
+        gameGeneration++
         replayMode = false
         replayMoves = emptyList()
         replayIndex = 0
@@ -416,7 +427,8 @@ class GameController(
         rebuildBoardToIndex(replayIndex)
     }
 
-    fun getReplayInfo(): String = if (replayMode) "第 $replayIndex / ${replayMoves.size} 步" else ""
+    fun getReplayInfo(): String =
+        if (replayMode) context.getString(R.string.replay_progress, replayIndex, replayMoves.size) else ""
 
     private fun rebuildBoardToIndex(index: Int) {
         val tempBoard = initialBoard.copy()
@@ -466,11 +478,19 @@ class GameController(
     }
 
     fun saveGame(context: Context): Boolean {
+        if (isEndgameMode) {
+            // Endgame studies start from a custom position the save format does
+            // not carry; replaying their moves onto the standard opening produced
+            // a scrambled board on resume. They are short, so just do not persist.
+            deleteSavedGame(context)
+            return false
+        }
         try {
             val json = JSONObject()
             json.put("gameMode", gameMode.name)
             json.put("aiColor", aiColor.name)
             json.put("difficulty", difficulty.name)
+            json.put("elapsedMs", System.currentTimeMillis() - gameStartTime)
 
             val movesArray = JSONArray()
             for (move in moveHistory) {
@@ -498,6 +518,7 @@ class GameController(
     }
 
     fun loadGame(context: Context): Boolean {
+        gameGeneration++
         try {
             val prefs = context.getSharedPreferences("chess_save", Context.MODE_PRIVATE)
             val jsonStr = prefs.getString("saved_game", null) ?: return false
@@ -545,7 +566,9 @@ class GameController(
                 positionHashes.add(board.getPositionHash())
             }
 
-            gameStartTime = System.currentTimeMillis()
+            // Resume the clock where it stopped rather than from zero.
+            gameStartTime = System.currentTimeMillis() - json.optLong("elapsedMs", 0L)
+            currentMoveStartTime = System.currentTimeMillis()
             onBoardUpdated?.invoke(board)
             updateStats()
 
@@ -556,6 +579,22 @@ class GameController(
             return true
         } catch (e: Exception) {
             return false
+        }
+    }
+
+    companion object {
+        /** Floor on how long an AI move appears to take, so replies never look instant. */
+        private const val MIN_THINK_MS = 900L
+
+        /** Difficulty stored with the saved game, so resuming rebuilds the same opponent. */
+        fun savedDifficulty(context: Context): AIDifficulty? {
+            val prefs = context.getSharedPreferences("chess_save", Context.MODE_PRIVATE)
+            val jsonStr = prefs.getString("saved_game", null) ?: return null
+            return try {
+                AIDifficulty.valueOf(JSONObject(jsonStr).getString("difficulty"))
+            } catch (_: Exception) {
+                null
+            }
         }
     }
 
@@ -590,16 +629,7 @@ class GameController(
 
     fun destroy() {
         coroutineScope.cancel()
-        soundManager.release()
         pikafishEngine?.close()
         pikafishEngine = null
-    }
-
-    fun setSoundEnabled(enabled: Boolean) {
-        soundManager.setEnabled(enabled)
-    }
-
-    fun isSoundEnabled(): Boolean {
-        return soundManager.isEnabled()
     }
 }
