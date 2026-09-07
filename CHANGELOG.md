@@ -77,6 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Undo functionality
 - Game statistics tracking (time, move count, material advantage)
 
+[2.3.1]: https://github.com/yingwang/chinese_chess_mobile/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/yingwang/chinese_chess_mobile/compare/v2.2.1...v2.3.0
 [1.1.0]: https://github.com/yingwang/chinese_chess_mobile/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/yingwang/chinese_chess_mobile/releases/tag/v1.0.0
