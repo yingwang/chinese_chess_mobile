@@ -229,12 +229,18 @@ class GameController(
                 val sideToMove = board.currentPlayer
                 var (move, score) = searchBestMove(null)
 
-                // Would this be the third time the position appears? Search again with the
-                // repeating moves off the table instead of grabbing the first legal move.
-                if (move != null && wouldCauseRepetition(move)) {
-                    val safeMoves = board.getAllLegalMoves().filterNot { wouldCauseRepetition(it) }
-                    val (alternative, altScore) = searchBestMove(safeMoves)
-                    if (alternative != null) {
+                // Shuffling: the engine happily walks a piece back and forth when nothing is
+                // pressing, which reads as dithering. If the chosen move revisits a position
+                // or reverses its own last move, search again with those moves off the table
+                // and take the alternative when it costs little. A third occurrence of a
+                // position is avoided regardless of score.
+                if (move != null && (timesSeenAfter(move) >= 1 || looksLikeShuffling(move, sideToMove))) {
+                    val forced = timesSeenAfter(move) >= 2
+                    val fresh = board.getAllLegalMoves().filter {
+                        timesSeenAfter(it) == 0 && !looksLikeShuffling(it, sideToMove)
+                    }
+                    val (alternative, altScore) = searchBestMove(fresh)
+                    if (alternative != null && (forced || acceptableAlternative(score, altScore))) {
                         move = alternative
                         score = altScore
                     }
@@ -336,11 +342,35 @@ class GameController(
         }
     }
 
-    private fun wouldCauseRepetition(move: Move): Boolean {
+    /** How many times the position after [move] has already occurred in this game. */
+    private fun timesSeenAfter(move: Move): Int {
         val testBoard = board.copy()
         testBoard.makeMoveInPlace(move)
         val hash = testBoard.getPositionHash()
-        return positionHashes.count { it == hash } >= 2 // would be 3rd occurrence
+        return positionHashes.count { it == hash }
+    }
+
+    /** True if [move] undoes [side]'s previous move or repeats the one before that. */
+    private fun looksLikeShuffling(move: Move, side: PieceColor): Boolean {
+        val own = moveHistory.filter { it.piece.color == side }
+        val last = own.lastOrNull() ?: return false
+        if (last.from == move.to && last.to == move.from) return true
+        val twoAgo = own.getOrNull(own.size - 2) ?: return false
+        return twoAgo.from == move.from && twoAgo.to == move.to
+    }
+
+    /**
+     * Whether an alternative to the engine's first choice is worth playing to avoid a
+     * repetition: never give up a mate, never walk into one, otherwise within 60 cp.
+     * Without scores (fallback search) any alternative is fine.
+     */
+    private fun acceptableAlternative(best: PikafishEngine.Score?, alt: PikafishEngine.Score?): Boolean {
+        if (best == null || alt == null) return true
+        best.mate?.let { return it < 0 }          // getting mated anyway: anything goes; mating: keep it
+        alt.mate?.let { return it > 0 }           // alternative mates: fine; gets mated: no
+        val bestCp = best.cp ?: return true
+        val altCp = alt.cp ?: return true
+        return altCp >= bestCp - 60
     }
 
     private fun checkGameOver(): Boolean {

@@ -44,6 +44,11 @@ import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        /** Mates farther away than this are shown as a plain "winning"/"losing". */
+        private const val MATE_HINT_LIMIT = 3
+    }
+
     private lateinit var boardView: BoardView
 
     // Header
@@ -371,8 +376,14 @@ class MainActivity : AppCompatActivity() {
     private fun evalText(eval: GameController.Evaluation, side: PieceColor): String {
         val sign = if (side == PieceColor.RED) 1 else -1
         eval.mateRed?.let { mate ->
+            // A mate count is a spoiler, so only a short one is spelled out.
             val mine = mate * sign
-            return if (mine > 0) getString(R.string.eval_mate_win, mine) else getString(R.string.eval_mate_loss, -mine)
+            return when {
+                mine > 0 && mine <= MATE_HINT_LIMIT -> getString(R.string.eval_mate_win, mine)
+                mine < 0 && -mine <= MATE_HINT_LIMIT -> getString(R.string.eval_mate_loss, -mine)
+                mine > 0 -> getString(R.string.eval_winning)
+                else -> getString(R.string.eval_losing)
+            }
         }
         val pawns = ((eval.cpRed ?: 0) * sign) / 100.0
         return getString(R.string.eval_label, String.format(Locale.US, "%+.1f", pawns))

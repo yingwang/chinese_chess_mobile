@@ -19,6 +19,8 @@
     <string name="eval_label">形势 %1$s</string>
     <string name="eval_mate_win">杀 %1$d</string>
     <string name="eval_mate_loss">被杀 %1$d</string>
+    <string name="eval_winning">胜势</string>
+    <string name="eval_losing">败势</string>
     <string name="round_label">回合 %1$d</string>
     <string name="history_empty">棋谱</string>
 
