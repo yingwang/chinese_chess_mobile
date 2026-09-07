@@ -16,6 +16,9 @@
     <string name="role_player">玩家</string>
     <string name="role_ai">AI</string>
     <string name="score_label">得分 %1$d</string>
+    <string name="eval_label">形势 %1$s</string>
+    <string name="eval_mate_win">杀 %1$d</string>
+    <string name="eval_mate_loss">被杀 %1$d</string>
     <string name="round_label">回合 %1$d</string>
     <string name="history_empty">棋谱</string>
 

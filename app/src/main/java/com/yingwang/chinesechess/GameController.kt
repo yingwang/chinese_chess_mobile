@@ -7,6 +7,8 @@ import com.yingwang.chinesechess.audio.GameAudioManager
 import com.yingwang.chinesechess.ai.PikafishEngine
 import com.yingwang.chinesechess.model.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -21,6 +23,14 @@ class GameController(
     private val difficulty: AIDifficulty = aiDifficulty
     /** Bumped whenever the position is reset, so a search finished against an old game is dropped. */
     private var gameGeneration = 0
+    /** One conversation with the engine process at a time. */
+    private val engineMutex = Mutex()
+
+    /**
+     * Engine view of the position from red's side: centipawns, or moves to mate
+     * (positive = red mates). Null when the engine is unavailable.
+     */
+    data class Evaluation(val cpRed: Int?, val mateRed: Int?)
     enum class AIDifficulty(val pikafishDepth: Int) {
         BEGINNER(3),
         INTERMEDIATE(6),
@@ -60,6 +70,7 @@ class GameController(
     private var replayMoves = listOf<Move>()
 
     var onBoardUpdated: ((Board) -> Unit)? = null
+    var onEvaluationUpdated: ((Evaluation?) -> Unit)? = null
     var onGameOver: ((GameResult) -> Unit)? = null
     var onAIThinking: ((Boolean) -> Unit)? = null
     var onMoveCompleted: ((Move) -> Unit)? = null
@@ -106,10 +117,13 @@ class GameController(
         blackCapturedPieces.clear()
         onBoardUpdated?.invoke(board)
         updateStats()
+        onEvaluationUpdated?.invoke(null)
 
         // Trigger AI move if needed
         if (shouldAIMove()) {
             makeAIMove()
+        } else {
+            refreshEvaluation()
         }
     }
 
@@ -172,9 +186,11 @@ class GameController(
             return true
         }
 
-        // AI's turn
+        // AI's turn; its search reports the evaluation, otherwise ask for one.
         if (shouldAIMove()) {
             makeAIMove()
+        } else {
+            refreshEvaluation()
         }
 
         return true
@@ -210,14 +226,18 @@ class GameController(
             try {
                 val generation = gameGeneration
                 val thinkStart = System.currentTimeMillis()
-                var move = searchBestMove(null)
+                val sideToMove = board.currentPlayer
+                var (move, score) = searchBestMove(null)
 
                 // Would this be the third time the position appears? Search again with the
                 // repeating moves off the table instead of grabbing the first legal move.
                 if (move != null && wouldCauseRepetition(move)) {
                     val safeMoves = board.getAllLegalMoves().filterNot { wouldCauseRepetition(it) }
-                    val alternative = searchBestMove(safeMoves)
-                    if (alternative != null) move = alternative
+                    val (alternative, altScore) = searchBestMove(safeMoves)
+                    if (alternative != null) {
+                        move = alternative
+                        score = altScore
+                    }
                 }
 
                 if (move != null) {
@@ -225,7 +245,11 @@ class GameController(
                     // hold it back so every AI move takes at least MIN_THINK_MS.
                     val elapsed = System.currentTimeMillis() - thinkStart
                     if (elapsed < MIN_THINK_MS) delay(MIN_THINK_MS - elapsed)
-                    if (generation == gameGeneration) applyAIMove(move)
+                    if (generation == gameGeneration) {
+                        // The root score of the search is the engine's view of the line it chose.
+                        onEvaluationUpdated?.invoke(toRedPerspective(score, sideToMove))
+                        applyAIMove(move)
+                    }
                 }
             } finally {
                 onAIThinking?.invoke(false)
@@ -233,14 +257,48 @@ class GameController(
         }
     }
 
-    /** Engine search, optionally restricted to [candidates]; null means every legal move. */
-    private suspend fun searchBestMove(candidates: List<Move>?): Move? {
-        if (candidates != null && candidates.isEmpty()) return null
-        val engine = ensurePikafish()
+    /**
+     * Engine search, optionally restricted to [candidates]; null means every legal move.
+     * Returns the move and, when Pikafish produced it, its root score for the side to move.
+     */
+    private suspend fun searchBestMove(candidates: List<Move>?): Pair<Move?, PikafishEngine.Score?> {
+        if (candidates != null && candidates.isEmpty()) return null to null
         val depth = if (difficulty.pikafishDepth > 0) difficulty.pikafishDepth else 0
         val timeMs = if (depth == 0) 10000L else 0L  // 棋圣: 10s unlimited
-        return engine?.findBestMove(board, depth = depth, moveTimeMs = timeMs, searchMoves = candidates)
-            ?: fallbackAI.findBestMove(board, moveHistory, allowedMoves = candidates)
+        val fromEngine = engineMutex.withLock {
+            val engine = ensurePikafish() ?: return@withLock null
+            val move = engine.findBestMove(board, depth = depth, moveTimeMs = timeMs, searchMoves = candidates)
+            if (move != null) move to engine.lastScore else null
+        }
+        if (fromEngine != null) return fromEngine
+        return fallbackAI.findBestMove(board, moveHistory, allowedMoves = candidates) to null
+    }
+
+    private fun toRedPerspective(score: PikafishEngine.Score?, sideToMove: PieceColor): Evaluation? {
+        if (score == null) return null
+        val sign = if (sideToMove == PieceColor.RED) 1 else -1
+        return Evaluation(cpRed = score.cp?.let { it * sign }, mateRed = score.mate?.let { it * sign })
+    }
+
+    /**
+     * Shallow engine evaluation of [target] (the live board by default), published through
+     * [onEvaluationUpdated] unless the game moved on while it ran.
+     */
+    private fun refreshEvaluation(target: Board = board) {
+        val snapshot = target.copy()
+        if (snapshot.isCheckmate() || snapshot.isStalemate()) return
+        val generation = gameGeneration
+        val moveCount = moveHistory.size
+        val replayAt = replayIndex
+        coroutineScope.launch {
+            val score = engineMutex.withLock {
+                val engine = ensurePikafish() ?: return@withLock null
+                engine.evaluate(snapshot, depth = 10)
+            }
+            if (generation == gameGeneration && moveCount == moveHistory.size && replayAt == replayIndex) {
+                onEvaluationUpdated?.invoke(toRedPerspective(score, snapshot.currentPlayer))
+            }
+        }
     }
 
     private suspend fun applyAIMove(finalMove: Move) {
@@ -354,6 +412,7 @@ class GameController(
 
         onBoardUpdated?.invoke(board)
         updateStats()
+        refreshEvaluation()
         return true
     }
 
@@ -377,6 +436,7 @@ class GameController(
         aiColor = PieceColor.BLACK
         onBoardUpdated?.invoke(board)
         updateStats()
+        if (!shouldAIMove()) refreshEvaluation()
     }
 
     fun isEndgameMode(): Boolean = isEndgameMode
@@ -440,6 +500,7 @@ class GameController(
         if (lastReplayMove != null) {
             onMoveCompleted?.invoke(lastReplayMove)
         }
+        refreshEvaluation(tempBoard)
     }
 
     fun getAIStats(): String {
@@ -571,6 +632,7 @@ class GameController(
             currentMoveStartTime = System.currentTimeMillis()
             onBoardUpdated?.invoke(board)
             updateStats()
+            if (!shouldAIMove()) refreshEvaluation()
 
             // Trigger AI move if it's AI's turn
             if (shouldAIMove()) {
@@ -617,10 +679,18 @@ class GameController(
         onAIThinking?.invoke(true)
         coroutineScope.launch {
             try {
-                val engine = ensurePikafish()
-                val bestMove = engine?.findBestMove(board, moveTimeMs = 2000)
-                    ?: fallbackAI.findBestMove(board, moveHistory)
-                callback(bestMove)
+                val sideToMove = board.currentPlayer
+                val fromEngine = engineMutex.withLock {
+                    val engine = ensurePikafish() ?: return@withLock null
+                    val move = engine.findBestMove(board, moveTimeMs = 2000)
+                    if (move != null) move to engine.lastScore else null
+                }
+                if (fromEngine != null) {
+                    onEvaluationUpdated?.invoke(toRedPerspective(fromEngine.second, sideToMove))
+                    callback(fromEngine.first)
+                } else {
+                    callback(fallbackAI.findBestMove(board, moveHistory))
+                }
             } finally {
                 onAIThinking?.invoke(false)
             }

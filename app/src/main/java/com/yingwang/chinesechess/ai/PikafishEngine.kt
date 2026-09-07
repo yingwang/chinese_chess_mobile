@@ -18,6 +18,16 @@ class PikafishEngine(private val context: Context) : Closeable {
     private var reader: BufferedReader? = null
     private var isReady = false
 
+    /**
+     * Engine score for the side to move: centipawns, or moves to mate (positive = the side
+     * to move mates). Taken from the last `info` line of the most recent search.
+     */
+    data class Score(val cp: Int?, val mate: Int?)
+
+    /** Score reported by the most recent search, for the side that was to move. */
+    var lastScore: Score? = null
+        private set
+
     companion object {
         private const val TAG = "PikafishEngine"
         private const val BINARY_NAME = "libpikafish.so"
@@ -107,20 +117,54 @@ class PikafishEngine(private val context: Context) : Closeable {
         }
         sendCommand(goCmd)
 
-        // Wait for bestmove response
+        val bestMoveUci = readUntilBestMove()
+        if (bestMoveUci == null || bestMoveUci == "(none)") return@withContext null
+
+        uciToMove(bestMoveUci, board)
+    }
+
+    /**
+     * Quick evaluation of a position, for the side to move. Shallow by default so it can run
+     * after every move without a visible pause.
+     */
+    suspend fun evaluate(board: Board, depth: Int = 10): Score? = withContext(Dispatchers.IO) {
+        if (!isReady) return@withContext null
+        sendCommand("position fen ${boardToFen(board)}")
+        sendCommand("go depth $depth")
+        readUntilBestMove()
+        lastScore
+    }
+
+    /** Reads engine output up to `bestmove`, recording the score of each `info` line on the way. */
+    private fun readUntilBestMove(): String? {
         var bestMoveUci: String? = null
         while (true) {
             val line = reader?.readLine() ?: break
             Log.d(TAG, "< $line")
-            if (line.startsWith("bestmove")) {
+            if (line.startsWith("info ")) {
+                parseScore(line)?.let { lastScore = it }
+            } else if (line.startsWith("bestmove")) {
                 bestMoveUci = line.split(" ").getOrNull(1)
                 break
             }
         }
+        return bestMoveUci
+    }
 
-        if (bestMoveUci == null || bestMoveUci == "(none)") return@withContext null
-
-        uciToMove(bestMoveUci, board)
+    private fun parseScore(line: String): Score? {
+        val parts = line.split(" ")
+        // Only the principal variation; ignore multipv 2+ and lines without a score.
+        val pvIndex = parts.indexOf("multipv")
+        if (pvIndex >= 0 && parts.getOrNull(pvIndex + 1) != "1") return null
+        val i = parts.indexOf("score")
+        if (i < 0) return null
+        val kind = parts.getOrNull(i + 1) ?: return null
+        val value = parts.getOrNull(i + 2)?.toIntOrNull() ?: return null
+        return when (kind) {
+            "cp" -> Score(cp = value, mate = null)
+            "mate" -> Score(cp = null, mate = value)
+            else -> null
+        }
     }
 
     /**

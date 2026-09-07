@@ -34,6 +34,7 @@ import com.yingwang.chinesechess.audio.GameAudioManager
 import com.yingwang.chinesechess.model.Piece
 import com.yingwang.chinesechess.model.PieceColor
 import com.yingwang.chinesechess.ui.BoardView
+import com.yingwang.chinesechess.ui.EvalBarView
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -59,6 +60,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var gameTimeText: TextView
     private lateinit var moveCountText: TextView
     private lateinit var gameModeText: TextView
+    private lateinit var evalBar: EvalBarView
+    private var evaluation: GameController.Evaluation? = null
+    private var lastStats: GameController.GameStats? = null
 
     // Status pill
     private lateinit var statusText: TextView
@@ -159,6 +163,7 @@ class MainActivity : AppCompatActivity() {
         gameTimeText = findViewById(R.id.gameTimeText)
         moveCountText = findViewById(R.id.moveCountText)
         gameModeText = findViewById(R.id.gameModeText)
+        evalBar = findViewById(R.id.evalBar)
         statusText = findViewById(R.id.statusText)
         aiThinkingIndicator = findViewById(R.id.aiThinkingIndicator)
         thinkingDot1 = findViewById(R.id.thinkingDot1)
@@ -209,7 +214,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        updateScores(0, 0)
+        updateScoreLines()
         moveCountText.text = getString(R.string.round_label, 0)
     }
 
@@ -283,6 +288,14 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread { updateGameStats(stats) }
         }
 
+        gameController.onEvaluationUpdated = { eval ->
+            runOnUiThread {
+                evaluation = eval
+                evalBar.setEvaluation(eval?.cpRed, eval?.mateRed)
+                updateScoreLines()
+            }
+        }
+
         gameController.onMoveAnimationRequested = { move, preBoard ->
             runOnUiThread {
                 boardView.animateMove(move, preBoard) {
@@ -340,13 +353,34 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateScores(red: Int, black: Int) {
-        redScoreText.text = getString(R.string.score_label, red)
-        blackScoreText.text = getString(R.string.score_label, black)
+    /**
+     * Each card shows the engine's view of the game from its own side. Without an engine
+     * (fallback search) the old material count stands in.
+     */
+    private fun updateScoreLines() {
+        val eval = evaluation
+        if (eval == null) {
+            redScoreText.text = getString(R.string.score_label, lastStats?.redScore ?: 0)
+            blackScoreText.text = getString(R.string.score_label, lastStats?.blackScore ?: 0)
+            return
+        }
+        redScoreText.text = evalText(eval, PieceColor.RED)
+        blackScoreText.text = evalText(eval, PieceColor.BLACK)
+    }
+
+    private fun evalText(eval: GameController.Evaluation, side: PieceColor): String {
+        val sign = if (side == PieceColor.RED) 1 else -1
+        eval.mateRed?.let { mate ->
+            val mine = mate * sign
+            return if (mine > 0) getString(R.string.eval_mate_win, mine) else getString(R.string.eval_mate_loss, -mine)
+        }
+        val pawns = ((eval.cpRed ?: 0) * sign) / 100.0
+        return getString(R.string.eval_label, String.format(Locale.US, "%+.1f", pawns))
     }
 
     private fun updateGameStats(stats: GameController.GameStats) {
-        updateScores(stats.redScore, stats.blackScore)
+        lastStats = stats
+        updateScoreLines()
         gameTimeText.text = formatTime(stats.gameTime)
         moveCountText.text = getString(R.string.round_label, stats.moveNumber)
         updateMoveHistory()

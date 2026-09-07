@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.1] - 2026-09-07
+
+### Added
+- Engine evaluation replaces the material count: each card shows the position from its own side in pawns (or moves to mate), and a bar above the board shows red's share; the score comes from Pikafish's search (a quick depth-10 look after moves it did not search itself). Without the engine the material count stands in.
+
 ## [2.3.0] - 2026-09-07
 
 ### Changed
