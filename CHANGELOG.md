@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.2] - 2026-09-07
+
+### Changed
+- The AI no longer walks a piece back and forth: a move that revisits a position or reverses its own last move is re-searched with those moves excluded, and the alternative is played when it is within 60 cp (never giving up or walking into a mate); a third occurrence of a position is avoided regardless
+- Mates farther than three moves away show as 胜势/败势 instead of the count, so the evaluation does not give the tactic away
+
 ## [2.3.1] - 2026-09-07
 
 ### Added
@@ -77,6 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Undo functionality
 - Game statistics tracking (time, move count, material advantage)
 
+[2.3.2]: https://github.com/yingwang/chinese_chess_mobile/compare/v2.3.1...v2.3.2
 [2.3.1]: https://github.com/yingwang/chinese_chess_mobile/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/yingwang/chinese_chess_mobile/compare/v2.2.1...v2.3.0
 [1.1.0]: https://github.com/yingwang/chinese_chess_mobile/compare/v1.0.0...v1.1.0
