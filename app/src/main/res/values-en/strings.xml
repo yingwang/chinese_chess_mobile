@@ -153,6 +153,7 @@
     <string name="export_date">Date: %1$s</string>
     <string name="export_mode">Mode: %1$s</string>
     <string name="export_moves">Moves: %1$d</string>
+    <string name="export_time">Time: Red %1$s · Black %2$s · Total %3$s</string>
     <string name="export_result">Result: %1$s</string>
     <string name="result_unfinished">Unfinished</string>
     <string name="about_title">About Chinese Chess</string>

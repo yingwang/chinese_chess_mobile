@@ -23,7 +23,6 @@
     <color name="chess_on_accent">#F8FAF2</color>
     <color name="chess_red_side">#A52E2B</color>
     <color name="chess_black_side">#202C2A</color>
-    <color name="chess_timer">#223F3C</color>
     <color name="chess_button_bg">#DAE5D6</color>
     <color name="chess_button_text">#254F49</color>
     <color name="chess_button_ripple">#2235675C</color>

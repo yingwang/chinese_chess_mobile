@@ -34,7 +34,9 @@ import androidx.core.graphics.ColorUtils
 import androidx.core.view.ViewCompat
 import androidx.core.widget.TextViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.yingwang.chinesechess.GameController.AIDifficulty
@@ -47,7 +49,6 @@ import com.yingwang.chinesechess.ui.BoardView
 import com.yingwang.chinesechess.ui.EvalBarView
 import com.yingwang.chinesechess.ui.EvalGraphView
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -67,6 +68,8 @@ class MainActivity : AppCompatActivity() {
         private const val BOARD_RESERVE_DP = 56
         /** How long the player stays on a review position before the engine takes a longer look. */
         private const val DEEP_LOOK_DELAY_MS = 600L
+        /** How often the running clock is redrawn; well under a second, so no second is skipped. */
+        private const val CLOCK_REFRESH_MS = 200L
     }
 
     private lateinit var boardView: BoardView
@@ -80,7 +83,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var blackRoleText: TextView
     private lateinit var redCapturedLayout: LinearLayout
     private lateinit var blackCapturedLayout: LinearLayout
-    private lateinit var gameTimeText: TextView
+    private lateinit var redClockText: TextView
+    private lateinit var blackClockText: TextView
     private lateinit var moveCountText: TextView
     private lateinit var gameModeText: TextView
     private lateinit var evalBar: EvalBarView
@@ -150,7 +154,7 @@ class MainActivity : AppCompatActivity() {
         initViews()
         setupGameControllerCallbacks()
         gameController.startNewGame()
-        startTimerUpdates()
+        startClockUpdates()
 
         if (!gameController.hasSavedGame(this) && preferredDifficulty() == null) {
             showDifficultyDialog(firstRun = true)
@@ -168,6 +172,8 @@ class MainActivity : AppCompatActivity() {
                 .setNegativeButton(R.string.new_game) { _, _ ->
                     gameController.deleteSavedGame(this)
                 }
+                // A fresh game's first clock starts once the question is answered, not under it.
+                .setOnDismissListener { gameController.restartClockIfUnplayed() }
                 .show()
         }
     }
@@ -175,14 +181,15 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (!isMuted) audioManager.startBackgroundMusic()
-        gameController.setBackgroundAnalysisAllowed(true)
+        gameController.setInForeground(true)
     }
 
     override fun onPause() {
         super.onPause()
         audioManager.pauseBackgroundMusic()
-        // No engine work while the app is out of sight.
-        gameController.setBackgroundAnalysisAllowed(false)
+        // The clocks stop and the engine does no work while the app is out of sight; stopped
+        // first, so the save has both clocks to the moment the app left.
+        gameController.setInForeground(false)
         if (gameController.getMoveHistory().isNotEmpty()) {
             gameController.saveGame(this)
         }
@@ -259,7 +266,8 @@ class MainActivity : AppCompatActivity() {
         blackRoleText = findViewById(R.id.blackRoleText)
         redCapturedLayout = findViewById(R.id.redCapturedPieces)
         blackCapturedLayout = findViewById(R.id.blackCapturedPieces)
-        gameTimeText = findViewById(R.id.gameTimeText)
+        redClockText = findViewById(R.id.redClockText)
+        blackClockText = findViewById(R.id.blackClockText)
         moveCountText = findViewById(R.id.moveCountText)
         gameModeText = findViewById(R.id.gameModeText)
         evalBar = findViewById(R.id.evalBar)
@@ -353,6 +361,7 @@ class MainActivity : AppCompatActivity() {
 
         updateScoreLines()
         moveCountText.text = getString(R.string.round_label, 0)
+        updateClocks()
     }
 
     private fun setupGameControllerCallbacks() {
@@ -457,6 +466,26 @@ class MainActivity : AppCompatActivity() {
         blackCard.setBackgroundResource(if (blackActive) R.drawable.player_card_active else R.drawable.player_card)
         redTurnDot.visibility = if (redActive) View.VISIBLE else View.INVISIBLE
         blackTurnDot.visibility = if (blackActive) View.VISIBLE else View.INVISIBLE
+        updateClocks()
+    }
+
+    /**
+     * Each card's clock: the time its side has used, the running one (the side to move, while
+     * the game is live) in the accent and bold, the other quieter.
+     */
+    private fun updateClocks() {
+        val running = gameController.clockTurn()
+        showClock(redClockText, gameController.clockTime(PieceColor.RED), running == PieceColor.RED)
+        showClock(blackClockText, gameController.clockTime(PieceColor.BLACK), running == PieceColor.BLACK)
+    }
+
+    private fun showClock(view: TextView, ms: Long, running: Boolean) {
+        val text = GameClock.format(ms)
+        if (view.text.toString() != text) view.text = text
+        if (view.isActivated != running) {
+            view.isActivated = running
+            view.setTypeface(Typeface.SERIF, if (running) Typeface.BOLD else Typeface.NORMAL)
+        }
     }
 
     private fun getStatusText(): String {
@@ -510,7 +539,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateGameStats(stats: GameController.GameStats) {
         lastStats = stats
         updateScoreLines()
-        gameTimeText.text = formatTime(stats.gameTime)
+        updateClocks()
         // A round is a red move and the black reply, as in the move strip and the record.
         moveCountText.text = getString(R.string.round_label, (stats.moveNumber + 1) / 2)
         updateMoveHistory()
@@ -573,18 +602,6 @@ class MainActivity : AppCompatActivity() {
         thinkingAnimator = null
     }
 
-    private fun formatTime(timeInMillis: Long): String {
-        val totalSeconds = timeInMillis / 1000
-        val hours = totalSeconds / 3600
-        val minutes = (totalSeconds % 3600) / 60
-        val seconds = totalSeconds % 60
-        return if (hours > 0) {
-            String.format(Locale.US, "%d:%02d:%02d", hours, minutes, seconds)
-        } else {
-            String.format(Locale.US, "%02d:%02d", minutes, seconds)
-        }
-    }
-
     /** The strip under the board shows only the latest round; the whole game is a tap away. */
     private fun updateMoveHistory() {
         val moves = gameController.getMoveHistory()
@@ -635,12 +652,14 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun startTimerUpdates() {
+    /** Redraws the clocks while the app is in front, the only time they run. */
+    private fun startClockUpdates() {
         lifecycleScope.launch {
-            while (isActive) {
-                delay(1000)
-                val gameTime = System.currentTimeMillis() - gameController.getGameStartTime()
-                gameTimeText.text = formatTime(gameTime)
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                while (true) {
+                    updateClocks()
+                    delay(CLOCK_REFRESH_MS)
+                }
             }
         }
     }
@@ -1204,6 +1223,10 @@ class MainActivity : AppCompatActivity() {
             .setOnCancelListener {
                 if (firstRun) settings.edit().putString(KEY_DIFFICULTY, gameController.getDifficulty().name).apply()
             }
+            .setOnDismissListener {
+                // As with the resume question at launch: the first clock starts after it.
+                if (firstRun) gameController.restartClockIfUnplayed()
+            }
             .show()
     }
 
@@ -1314,6 +1337,12 @@ class MainActivity : AppCompatActivity() {
         sb.appendLine(getString(R.string.export_date, SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())))
         sb.appendLine(getString(R.string.export_mode, modeDescription()))
         sb.appendLine(getString(R.string.export_moves, (moves.size + 1) / 2))
+        sb.appendLine(getString(
+            R.string.export_time,
+            GameClock.format(gameController.clockTime(PieceColor.RED)),
+            GameClock.format(gameController.clockTime(PieceColor.BLACK)),
+            GameClock.format(gameController.totalClockTime())
+        ))
         sb.appendLine("─".repeat(30))
         sb.appendLine()
 

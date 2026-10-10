@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.8] - 2026-10-10
+
+### Changed
+- Each side has its own clock in its card, beside the round, instead of one clock for the whole game in the middle. Only the side to move is charged, the AI's thinking included; the running clock is in the accent and bold, the other quieter. No time limits
+- The exported record gives each side's time and the total
+
+### Fixed
+- The game clock kept running while the app was in the background and jumped when it came back, yet after the app was closed and the game resumed it carried on from the saved time without the gap. The clocks now stop whenever the app is out of sight and pick up exactly where they were, they stop when the game ends and during a replay or review, and both are saved with the game. They count on the phone's monotonic clock, so changing the time of day cannot move them
+- Taking a move back rewinds the position, not the clocks: time spent stays with the side that spent it, so nothing is given back twice and nothing counted twice
+- A game saved by an earlier version, which kept only one total, resumes with both clocks at zero
+
 ## [2.4.7] - 2026-10-04
 
 ### Changed

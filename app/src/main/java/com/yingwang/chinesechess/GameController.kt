@@ -1,6 +1,7 @@
 package com.yingwang.chinesechess
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import com.yingwang.chinesechess.ai.ChessAI
 import com.yingwang.chinesechess.audio.GameAudioManager
@@ -70,8 +71,8 @@ class GameController(
     private var moveHistory = mutableListOf<Move>()
     private var positionHashes = mutableListOf<Long>()
     private val coroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    private var gameStartTime = 0L
-    private var currentMoveStartTime = 0L
+    /** Each side's thinking time; see [syncClock] for when it runs. */
+    private val clock = GameClock(SystemClock::elapsedRealtime)
     private var redScore = 0
     private var blackScore = 0
     private val redCapturedPieces = mutableListOf<Piece>()
@@ -96,8 +97,6 @@ class GameController(
         val redScore: Int,
         val blackScore: Int,
         val moveNumber: Int,
-        val gameTime: Long,
-        val lastMoveTime: Long,
         val redCapturedPieces: List<Piece> = emptyList(),
         val blackCapturedPieces: List<Piece> = emptyList()
     )
@@ -127,8 +126,8 @@ class GameController(
         positionHashes.clear()
         positionHashes.add(board.getPositionHash())
         fallbackAI.clearCache()
-        gameStartTime = System.currentTimeMillis()
-        currentMoveStartTime = gameStartTime
+        clock.reset()
+        syncClock()
         redScore = 0
         blackScore = 0
         redCapturedPieces.clear()
@@ -184,11 +183,10 @@ class GameController(
         onMoveAnimationRequested?.invoke(move, board.copy())
 
         // Make the move
-        val moveStartTime = currentMoveStartTime
         board.makeMoveInPlace(move)
         moveHistory.add(move)
         positionHashes.add(board.getPositionHash())
-        currentMoveStartTime = System.currentTimeMillis()
+        syncClock()
 
         // Check for check condition and play sound
         if (board.isInCheck(board.currentPlayer)) {
@@ -207,6 +205,7 @@ class GameController(
         val study = endgame
         if (study != null && endgameMovesLeft() <= 0) {
             gameOver = true
+            syncClock()
             audio.playGameOverSound()
             onEndgameFailed?.invoke(study)
             return true
@@ -378,7 +377,7 @@ class GameController(
         board.makeMoveInPlace(finalMove)
         moveHistory.add(finalMove)
         positionHashes.add(board.getPositionHash())
-        currentMoveStartTime = System.currentTimeMillis()
+        syncClock()
 
         if (board.isInCheck(board.currentPlayer)) audio.playCheckSound()
 
@@ -426,38 +425,24 @@ class GameController(
     fun isGameOver(): Boolean = gameOver
 
     private fun checkGameOver(): Boolean {
-        gameOver = true
-        when {
-            board.isCheckmate() -> {
-                audio.playGameOverSound()
-                val winner = board.currentPlayer.opposite()
-                onGameOver?.invoke(GameResult.Checkmate(winner))
-                return true
-            }
-            board.isStalemate() -> {
-                audio.playGameOverSound()
-                onGameOver?.invoke(GameResult.Stalemate)
-                return true
-            }
+        // Repetition detection: same position 3 times. If the side to move is in check there, the
+        // opponent has been checking perpetually and loses.
+        val repeated = positionHashes.count { it == positionHashes.last() } >= 3
+        val result = when {
+            board.isCheckmate() -> GameResult.Checkmate(board.currentPlayer.opposite())
+            board.isStalemate() -> GameResult.Stalemate
+            repeated && board.isInCheck(board.currentPlayer) -> GameResult.PerpetualCheck(board.currentPlayer)
+            repeated -> GameResult.RepetitionDraw
+            else -> null
         }
-
-        // Repetition detection: same position 3 times
-        val currentHash = positionHashes.last()
-        val count = positionHashes.count { it == currentHash }
-        if (count >= 3) {
-            audio.playGameOverSound()
-            if (board.isInCheck(board.currentPlayer)) {
-                // Current player is in check → opponent perpetually checking → opponent loses
-                val winner = board.currentPlayer
-                onGameOver?.invoke(GameResult.PerpetualCheck(winner))
-            } else {
-                onGameOver?.invoke(GameResult.RepetitionDraw)
-            }
-            return true
-        }
-
-        gameOver = false
-        return false
+        // Settled before the result is announced: the game-over dialog asks whether the game is
+        // over, and the clocks stop on the last move.
+        gameOver = result != null
+        syncClock()
+        if (result == null) return false
+        audio.playGameOverSound()
+        onGameOver?.invoke(result)
+        return true
     }
 
     fun undoLastMove(): Boolean {
@@ -496,6 +481,9 @@ class GameController(
             board.makeMoveInPlace(move)
             positionHashes.add(board.getPositionHash())
         }
+        // The clocks keep the time already spent; the side now to move is charged from here on
+        // (GameClock).
+        syncClock()
 
         onBoardUpdated?.invoke(board)
         updateStats()
@@ -516,14 +504,15 @@ class GameController(
         positionHashes.clear()
         positionHashes.add(board.getPositionHash())
         fallbackAI.clearCache()
-        gameStartTime = System.currentTimeMillis()
-        currentMoveStartTime = gameStartTime
         redScore = 0
         blackScore = 0
         redCapturedPieces.clear()
         blackCapturedPieces.clear()
         gameMode = GameMode.PLAYER_VS_AI
         aiColor = board.currentPlayer.opposite()
+        // A study is timed like any game, from zero on every attempt.
+        clock.reset()
+        syncClock()
         onBoardUpdated?.invoke(board)
         updateStats()
         onEvaluationUpdated?.invoke(null)
@@ -558,6 +547,7 @@ class GameController(
         }
         if (moves.isEmpty()) return
         replayMode = true
+        syncClock()
         replayMoves = moves
         replayIndex = 0
         rebuildBoardToIndex(0)
@@ -574,6 +564,7 @@ class GameController(
         gameGeneration++
         interruptBackground()
         replayMode = true
+        syncClock()
         replayMoves = moveHistory.toList()
         replayIndex = replayMoves.size
         return true
@@ -584,6 +575,7 @@ class GameController(
         replayMode = false
         replayMoves = emptyList()
         replayIndex = 0
+        syncClock()
         onBoardUpdated?.invoke(board)
         // Pick the game up where it stopped: the AI moves on if it is its turn.
         if (!gameOver && !board.isCheckmate() && !board.isStalemate() && shouldAIMove()) makeAIMove()
@@ -655,7 +647,33 @@ class GameController(
 
     fun getDifficulty(): AIDifficulty = difficulty
 
-    fun getGameStartTime(): Long = gameStartTime
+    /** Time [side] has used so far in this game. */
+    fun clockTime(side: PieceColor): Long = clock.elapsed(side)
+
+    /** Both sides' time together. */
+    fun totalClockTime(): Long = clock.total()
+
+    /** The side whose clock runs while the app is in the foreground; null when both are stopped. */
+    fun clockTurn(): PieceColor? = clock.turn
+
+    /**
+     * Only the side to move is charged, and nobody once the game is over or while a replay (or a
+     * study's solution) is on the board. The pause for the background is separate ([setInForeground]).
+     */
+    private fun syncClock() {
+        val stopped = replayMode || gameOver || board.isCheckmate() || board.isStalemate()
+        clock.setTurn(if (stopped) null else board.currentPlayer)
+    }
+
+    /**
+     * A game nobody has moved in starts its clock afresh: the time spent on the dialogs shown at
+     * launch is not the first player's thinking.
+     */
+    fun restartClockIfUnplayed() {
+        if (moveHistory.isNotEmpty()) return
+        clock.reset()
+        syncClock()
+    }
 
     fun isPlayerTurn(): Boolean {
         return when (gameMode) {
@@ -666,14 +684,10 @@ class GameController(
     }
 
     private fun updateStats() {
-        val gameTime = System.currentTimeMillis() - gameStartTime
-        val lastMoveTime = System.currentTimeMillis() - currentMoveStartTime
         val stats = GameStats(
             redScore = redScore,
             blackScore = blackScore,
             moveNumber = moveHistory.size,
-            gameTime = gameTime,
-            lastMoveTime = lastMoveTime,
             redCapturedPieces = redCapturedPieces.toList(),
             blackCapturedPieces = blackCapturedPieces.toList()
         )
@@ -692,7 +706,9 @@ class GameController(
             json.put("gameMode", gameMode.name)
             json.put("aiColor", aiColor.name)
             json.put("difficulty", difficulty.name)
-            json.put("elapsedMs", System.currentTimeMillis() - gameStartTime)
+            clock.writeTo(json)
+            // The one total that saves before 2.4.8 kept, for an older version reading this one.
+            json.put("elapsedMs", clock.total())
 
             val movesArray = JSONArray()
             for (move in moveHistory) {
@@ -772,9 +788,10 @@ class GameController(
                 positionHashes.add(board.getPositionHash())
             }
 
-            // Resume the clock where it stopped rather than from zero.
-            gameStartTime = System.currentTimeMillis() - json.optLong("elapsedMs", 0L)
-            currentMoveStartTime = System.currentTimeMillis()
+            // Each clock resumes where it stopped (from zero for a save that has no clocks).
+            val (redMs, blackMs) = GameClock.savedTimes(json)
+            clock.reset(redMs, blackMs)
+            syncClock()
             onBoardUpdated?.invoke(board)
             updateStats()
             if (!shouldAIMove()) refreshEvaluation()
@@ -839,10 +856,14 @@ class GameController(
     private var backgroundSearching = false
     private var backgroundAllowed = true
 
-    /** Called as the app goes to the background and comes back. */
-    fun setBackgroundAnalysisAllowed(allowed: Boolean) {
-        backgroundAllowed = allowed
-        if (allowed) scheduleBackgroundAnalysis() else interruptBackground()
+    /**
+     * Called as the app goes to the background and comes back: the clocks stop and pick up again
+     * where they were, and the engine does no work of its own while the app is out of sight.
+     */
+    fun setInForeground(inForeground: Boolean) {
+        clock.setPaused(!inForeground)
+        backgroundAllowed = inForeground
+        if (inForeground) scheduleBackgroundAnalysis() else interruptBackground()
     }
 
     private fun positionAfter(index: Int): Board {

@@ -151,6 +151,7 @@
     <string name="export_date">日期: %1$s</string>
     <string name="export_mode">模式: %1$s</string>
     <string name="export_moves">回合数: %1$d</string>
+    <string name="export_time">用时: 红方 %1$s · 黑方 %2$s · 合计 %3$s</string>
     <string name="export_result">结果: %1$s</string>
     <string name="result_unfinished">未结束</string>
     <string name="about_title">关于中国象棋</string>

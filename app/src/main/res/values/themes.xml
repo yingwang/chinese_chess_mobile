@@ -54,6 +54,20 @@
         <item name="android:textStyle">bold</item>
     </style>
 
+    <!-- Each side's clock, at the inner end of its card's name row. -->
+    <style name="SideClock">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <!-- The serif of the names. Its figures are all one width (tnum asks for that in a font
+             where they are not), so the time does not shift as it runs. -->
+        <item name="android:fontFamily">serif</item>
+        <item name="android:fontFeatureSettings">tnum</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:text">00:00</item>
+        <item name="android:textColor">@color/side_clock_text</item>
+        <item name="android:textSize">15sp</item>
+    </style>
+
     <!-- Bottom bar: icon over label, flat tonal ground. -->
     <style name="Widget.Chess.Button" parent="Widget.MaterialComponents.Button.UnelevatedButton">
         <item name="backgroundTint">@color/chess_button_bg</item>

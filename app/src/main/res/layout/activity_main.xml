@@ -20,8 +20,10 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Header: one card per side with its role, score and trophies; clock and mode between them.
-         The side to move gets the accent stroke and a dot, so the header carries the turn on its own. -->
+    <!-- Header: one card per side with its role, its clock and the pieces it has taken; the round
+         and mode between them. The side to move gets the accent stroke, a dot and the running clock,
+         so the header carries the turn on its own. Each clock sits at the inner end of its name row,
+         beside the round; the role gives way to it on a narrow card. -->
     <LinearLayout
         android:id="@+id/header"
         android:layout_width="0dp"
@@ -72,13 +74,21 @@
 
                 <TextView
                     android:id="@+id/redRoleText"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
                     android:fontFamily="serif"
+                    android:maxLines="1"
                     android:text="@string/role_player"
                     android:textColor="@color/chess_text_secondary"
                     android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/redClockText"
+                    style="@style/SideClock"
+                    android:layout_marginStart="4dp" />
             </LinearLayout>
 
 
@@ -103,19 +113,9 @@
             android:paddingEnd="6dp">
 
             <TextView
-                android:id="@+id/gameTimeText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="monospace"
-                android:text="00:00"
-                android:textColor="@color/chess_timer"
-                android:textSize="18sp" />
-
-            <TextView
                 android:id="@+id/moveCountText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
                 android:fontFamily="serif"
                 android:text="@string/round_label"
                 android:textColor="@color/chess_text_secondary"
@@ -152,11 +152,20 @@
                 android:orientation="horizontal">
 
                 <TextView
+                    android:id="@+id/blackClockText"
+                    style="@style/SideClock"
+                    android:layout_marginEnd="4dp" />
+
+                <TextView
                     android:id="@+id/blackRoleText"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
                     android:fontFamily="serif"
+                    android:gravity="end"
+                    android:maxLines="1"
                     android:text="@string/role_ai"
                     android:textColor="@color/chess_text_secondary"
                     android:textSize="12sp" />

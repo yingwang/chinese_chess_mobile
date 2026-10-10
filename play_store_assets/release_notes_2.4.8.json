@@ -1,0 +1,10 @@
+[
+ {
+  "language": "en-US",
+  "text": "Each side now has its own clock, in its card at the top: only the side to move is timed, the AI's thinking included, and the running clock stands out. The clocks stop while the app is in the background and pick up where they were, stop when the game ends and during a replay or review, and are saved with the game. No time limits. The exported record gives each side's time."
+ },
+ {
+  "language": "zh-CN",
+  "text": "红黑双方各有自己的计时，显示在顶部各自的名牌里：轮到谁走就计谁的时间，电脑思考的时间也算在它那边，正在走的钟会突出显示。切到后台时两边的钟都会停下，回来后从原处接着走；终局后、回放和复盘时也不计时。计时随棋局一起保存，不限时。导出的棋谱会写上双方各自的用时。"
+ }
+]

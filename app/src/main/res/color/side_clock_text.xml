@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A side's clock in its header card: the running one in the accent (MainActivity sets it
+     activated, and bold), the stopped one quieter. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/chess_accent" android:state_activated="true" />
+    <item android:alpha="0.8" android:color="@color/chess_text_secondary" />
+</selector>
