@@ -53,13 +53,32 @@ class GameController(
     enum class GameMode {
         PLAYER_VS_PLAYER,
         PLAYER_VS_AI,
-        AI_VS_AI
+        AI_VS_AI,
+        /** Against a friend over the network (MainActivity and online.OnlineSession carry the moves). */
+        ONLINE
+    }
+
+    /**
+     * The clocks of an online game, worked out from the server's time of each move so that both
+     * players see the same; replaces the local [GameClock] while one is set.
+     */
+    interface ClockSource {
+        fun elapsed(side: PieceColor): Long
+        /** The side whose time is running, or null once the game is over. */
+        fun running(): PieceColor?
     }
 
     private var board = Board.createInitialBoard()
     private var initialBoard = Board.createInitialBoard()
     private var gameMode = GameMode.PLAYER_VS_AI
+    /**
+     * The side the engine plays. In an online game, the opponent's side: no engine plays it, but
+     * everything that asks which side is the player's (the result, the review) reads it the same way.
+     */
     private var aiColor = PieceColor.BLACK
+    private val online: Boolean get() = gameMode == GameMode.ONLINE
+    /** Set for an online game; see [ClockSource]. */
+    var onlineClock: ClockSource? = null
     /** The study being solved, if this is endgame practice. */
     private var endgame: EndgameStudy? = null
     private val inEndgame: Boolean get() = endgame != null
@@ -153,6 +172,8 @@ class GameController(
 
     fun makePlayerMove(move: Move): Boolean {
         if (replayMode) return false
+        // Online, only your own pieces, on your own turn, while the game is on.
+        if (online && (gameOver || board.currentPlayer != aiColor.opposite())) return false
 
         // Validate move
         val legalMoves = board.getAllLegalMoves()
@@ -160,6 +181,112 @@ class GameController(
             return false
         }
 
+        playMove(move)
+
+        // Check game over
+        if (checkGameOver()) {
+            return true
+        }
+
+        val study = endgame
+        if (study != null && endgameMovesLeft() <= 0) {
+            gameOver = true
+            syncClock()
+            audio.playGameOverSound()
+            onEndgameFailed?.invoke(study)
+            return true
+        }
+
+        // AI's turn; its search reports the evaluation, otherwise ask for one.
+        if (shouldAIMove()) {
+            makeAIMove()
+        } else {
+            refreshEvaluation()
+        }
+
+        return true
+    }
+
+    /**
+     * The opponent's move in an online game, as it came over the network. Played like one made
+     * on this board (sound, animation, result), if it is legal and theirs to make; false otherwise.
+     */
+    fun applyRemoteMove(from: Position, to: Position): Boolean {
+        if (!online || gameOver || replayMode) return false
+        if (board.currentPlayer != aiColor) return false
+        val move = board.getAllLegalMoves().firstOrNull { it.from == from && it.to == to } ?: return false
+        playMove(move)
+        checkGameOver()
+        return true
+    }
+
+    /**
+     * Sets up an online game with [myColor] as the player's side and plays [moves] onto the
+     * opening without sound or animation: a new game, or one picked up again after the app
+     * was away. Returns how many of the moves were legal and played; it stops at the first that
+     * is not.
+     */
+    fun startOnlineGame(myColor: PieceColor, moves: List<Pair<Position, Position>> = emptyList()): Int {
+        gameGeneration++
+        interruptBackground()
+        notes.clear()
+        gameOver = false
+        replayMode = false
+        endgame = null
+        gameMode = GameMode.ONLINE
+        aiColor = myColor.opposite()
+        board = Board.createInitialBoard()
+        initialBoard = board.copy()
+        moveHistory.clear()
+        positionHashes.clear()
+        positionHashes.add(board.getPositionHash())
+        redScore = 0
+        blackScore = 0
+        redCapturedPieces.clear()
+        blackCapturedPieces.clear()
+        var played = 0
+        for ((from, to) in moves) {
+            val move = board.getAllLegalMoves().firstOrNull { it.from == from && it.to == to } ?: break
+            move.capturedPiece?.let { captured ->
+                if (move.piece.color == PieceColor.RED) {
+                    redScore += captured.type.baseValue
+                    redCapturedPieces.add(captured)
+                } else {
+                    blackScore += captured.type.baseValue
+                    blackCapturedPieces.add(captured)
+                }
+            }
+            board.makeMoveInPlace(move)
+            moveHistory.add(move)
+            positionHashes.add(board.getPositionHash())
+            played++
+        }
+        clock.reset()
+        syncClock()
+        onBoardUpdated?.invoke(board)
+        updateStats()
+        onEvaluationUpdated?.invoke(null)
+        return played
+    }
+
+    /**
+     * After [startOnlineGame] picked a game up again: if its moves already ended it (the app went
+     * away before the result was out), announces the result through [onGameOver] as usual.
+     */
+    fun settleOnlineGame(): Boolean = online && !gameOver && checkGameOver()
+
+    /** An online game ended away from this board (a resignation, or the result the other side wrote). */
+    fun endOnlineGame() {
+        if (!online) return
+        gameOver = true
+        syncClock()
+    }
+
+    /** The player's side in an online game. */
+    fun onlineColor(): PieceColor = aiColor.opposite()
+
+    /** Sound, animation, the move on the board and everything that follows it, but not the result. */
+    private fun playMove(move: Move) {
         // Play appropriate sound
         if (move.capturedPiece != null) {
             audio.playCaptureSound()
@@ -196,29 +323,6 @@ class GameController(
         onBoardUpdated?.invoke(board)
         onMoveCompleted?.invoke(move)
         updateStats()
-
-        // Check game over
-        if (checkGameOver()) {
-            return true
-        }
-
-        val study = endgame
-        if (study != null && endgameMovesLeft() <= 0) {
-            gameOver = true
-            syncClock()
-            audio.playGameOverSound()
-            onEndgameFailed?.invoke(study)
-            return true
-        }
-
-        // AI's turn; its search reports the evaluation, otherwise ask for one.
-        if (shouldAIMove()) {
-            makeAIMove()
-        } else {
-            refreshEvaluation()
-        }
-
-        return true
     }
 
     private fun shouldAIMove(): Boolean {
@@ -226,6 +330,7 @@ class GameController(
             GameMode.PLAYER_VS_PLAYER -> false
             GameMode.PLAYER_VS_AI -> board.currentPlayer == aiColor
             GameMode.AI_VS_AI -> true
+            GameMode.ONLINE -> false
         }
     }
 
@@ -337,6 +442,8 @@ class GameController(
      * [onEvaluationUpdated] unless the game moved on while it ran.
      */
     private fun refreshEvaluation(target: Board = board) {
+        // No engine help while an online game is being played; a review afterwards is fine.
+        if (online && !gameOver) return
         val snapshot = target.copy()
         if (snapshot.isCheckmate() || snapshot.isStalemate()) return
         val generation = gameGeneration
@@ -446,6 +553,7 @@ class GameController(
     }
 
     fun undoLastMove(): Boolean {
+        if (online) return false
         gameGeneration++
         gameOver = false
         if (moveHistory.isEmpty()) return false
@@ -648,13 +756,18 @@ class GameController(
     fun getDifficulty(): AIDifficulty = difficulty
 
     /** Time [side] has used so far in this game. */
-    fun clockTime(side: PieceColor): Long = clock.elapsed(side)
+    fun clockTime(side: PieceColor): Long =
+        onlineClock?.takeIf { online }?.elapsed(side) ?: clock.elapsed(side)
 
     /** Both sides' time together. */
-    fun totalClockTime(): Long = clock.total()
+    fun totalClockTime(): Long = clockTime(PieceColor.RED) + clockTime(PieceColor.BLACK)
 
     /** The side whose clock runs while the app is in the foreground; null when both are stopped. */
-    fun clockTurn(): PieceColor? = clock.turn
+    fun clockTurn(): PieceColor? {
+        val source = onlineClock
+        if (online && source != null) return if (gameOver) null else source.running()
+        return clock.turn
+    }
 
     /**
      * Only the side to move is charged, and nobody once the game is over or while a replay (or a
@@ -680,6 +793,7 @@ class GameController(
             GameMode.PLAYER_VS_PLAYER -> true
             GameMode.PLAYER_VS_AI -> board.currentPlayer != aiColor
             GameMode.AI_VS_AI -> false
+            GameMode.ONLINE -> !gameOver && board.currentPlayer != aiColor
         }
     }
 
@@ -697,6 +811,8 @@ class GameController(
     }
 
     fun saveGame(context: Context): Boolean {
+        // An online game lives in the database and is picked up again from there (OnlineStore).
+        if (online) return false
         try {
             val json = JSONObject()
             // The position the game started from, so an endgame study resumes on its own
@@ -874,6 +990,7 @@ class GameController(
 
     private fun scheduleBackgroundAnalysis() {
         if (!backgroundAllowed || replayMode || backgroundJob?.isActive == true) return
+        if (online && !gameOver) return
         backgroundJob = coroutineScope.launch {
             while (isActive) {
                 if (replayMode || (!gameOver && shouldAIMove())) break

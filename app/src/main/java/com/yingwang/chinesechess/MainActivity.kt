@@ -37,6 +37,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.yingwang.chinesechess.GameController.AIDifficulty
@@ -45,6 +46,9 @@ import com.yingwang.chinesechess.ai.Review
 import com.yingwang.chinesechess.audio.GameAudioManager
 import com.yingwang.chinesechess.model.Piece
 import com.yingwang.chinesechess.model.PieceColor
+import com.yingwang.chinesechess.online.OnlineProtocol
+import com.yingwang.chinesechess.online.OnlineSession
+import com.yingwang.chinesechess.online.OnlineStore
 import com.yingwang.chinesechess.ui.BoardView
 import com.yingwang.chinesechess.ui.EvalBarView
 import com.yingwang.chinesechess.ui.EvalGraphView
@@ -70,6 +74,8 @@ class MainActivity : AppCompatActivity() {
         private const val DEEP_LOOK_DELAY_MS = 600L
         /** How often the running clock is redrawn; well under a second, so no second is skipped. */
         private const val CLOCK_REFRESH_MS = 200L
+        /** How long the online game may be without a connection before the status line says so. */
+        private const val RECONNECTING_DELAY_MS = 2500L
     }
 
     private lateinit var boardView: BoardView
@@ -115,8 +121,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var moveStrip: View
     private lateinit var replayBar: View
     private lateinit var replayProgressText: TextView
-    private lateinit var hintButton: Button
-    private lateinit var undoButton: Button
+    private lateinit var hintButton: MaterialButton
+    private lateinit var undoButton: MaterialButton
     private lateinit var moreButton: Button
 
     private var isMuted = false
@@ -156,6 +162,9 @@ class MainActivity : AppCompatActivity() {
         gameController.startNewGame()
         startClockUpdates()
 
+        // An online game the app was taken away from comes first: go back to its room.
+        if (rejoinSavedOnlineGame()) return
+
         if (!gameController.hasSavedGame(this) && preferredDifficulty() == null) {
             showDifficultyDialog(firstRun = true)
         }
@@ -176,6 +185,18 @@ class MainActivity : AppCompatActivity() {
                 .setOnDismissListener { gameController.restartClockIfUnplayed() }
                 .show()
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        OnlineSession.screenInSight(true)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Out of sight, an online game lets go of its connection; the friend sees this player
+        // offline until the app is back, and the moves made meanwhile arrive then.
+        OnlineSession.screenInSight(false)
     }
 
     override fun onResume() {
@@ -233,6 +254,7 @@ class MainActivity : AppCompatActivity() {
         updateGameModeDisplay()
         updateReplayBar()
         updateStatus()
+        applyOnlineUi()
         if (aiThinking) {
             aiThinkingIndicator.visibility = View.VISIBLE
             startThinkingAnimation()
@@ -315,6 +337,10 @@ class MainActivity : AppCompatActivity() {
         moreButton.setOnClickListener { showMoreDialog() }
 
         undoButton.setOnClickListener {
+            if (onlineSession != null) {
+                confirmLeaveOnline()
+                return@setOnClickListener
+            }
             if (isRatedGame()) {
                 toast(R.string.challenge_no_undo)
                 return@setOnClickListener
@@ -338,6 +364,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         hintButton.setOnClickListener {
+            if (onlineSession != null) {
+                confirmResign()
+                return@setOnClickListener
+            }
             if (isRatedGame()) {
                 toast(R.string.challenge_no_hint)
                 return@setOnClickListener
@@ -436,6 +466,17 @@ class MainActivity : AppCompatActivity() {
                 boardView.clearSelection()
                 return@setOnMoveListener
             }
+            val session = onlineSession
+            if (session != null && !session.opponentJoined) {
+                toast(R.string.online_waiting_short)
+                boardView.clearSelection()
+                return@setOnMoveListener
+            }
+            if (session != null && gameController.isGameOver()) {
+                toast(R.string.online_game_over)
+                boardView.clearSelection()
+                return@setOnMoveListener
+            }
             if (!gameController.isPlayerTurn()) {
                 toast(R.string.not_your_turn)
                 boardView.clearSelection()
@@ -443,6 +484,11 @@ class MainActivity : AppCompatActivity() {
             }
             if (gameController.makePlayerMove(move)) {
                 boardView.clearSelection()
+                // Sent before the result a mating move announces (that is posted, see
+                // showOnlineGameOver): the database takes no move once a result is in.
+                session?.sendMove(gameController.getMoveHistory().size - 1, move.from, move.to) {
+                    runOnUiThread { toast(R.string.online_move_failed) }
+                }
             } else {
                 toast(R.string.illegal_move)
             }
@@ -459,7 +505,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateStatus() {
         statusText.text = getStatusText()
         val board = gameController.getCurrentBoard()
-        val over = board.isCheckmate() || board.isStalemate()
+        val over = board.isCheckmate() || board.isStalemate() || (onlineSession != null && gameController.isGameOver())
         val redActive = !over && board.currentPlayer == PieceColor.RED
         val blackActive = !over && board.currentPlayer == PieceColor.BLACK
         redCard.setBackgroundResource(if (redActive) R.drawable.player_card_active else R.drawable.player_card)
@@ -491,6 +537,7 @@ class MainActivity : AppCompatActivity() {
     private fun getStatusText(): String {
         val board = gameController.getCurrentBoard()
         val side = sideName(board.currentPlayer)
+        onlineSession?.let { return onlineStatusText(it) }
         return when {
             board.isCheckmate() -> getString(R.string.wins, sideName(board.currentPlayer.opposite()))
             board.isStalemate() -> getString(R.string.draw_short)
@@ -672,6 +719,7 @@ class MainActivity : AppCompatActivity() {
         gameController.isInReplayMode() -> getString(R.string.mode_replay)
         gameController.isEndgameMode() -> getString(R.string.mode_endgame)
         else -> when (gameController.getGameMode()) {
+            GameMode.ONLINE -> getString(R.string.mode_online, onlineSession?.code ?: "")
             GameMode.PLAYER_VS_PLAYER -> getString(R.string.mode_pvp)
             GameMode.PLAYER_VS_AI -> getString(
                 if (isRatedGame()) R.string.mode_challenge else R.string.mode_pvai, difficultyShortName()
@@ -685,6 +733,10 @@ class MainActivity : AppCompatActivity() {
         gameController.isInReplayMode() -> getString(R.string.mode_replay_long)
         gameController.isEndgameMode() -> getString(R.string.mode_endgame_long)
         else -> when (gameController.getGameMode()) {
+            GameMode.ONLINE -> getString(
+                R.string.mode_online_long, onlineSession?.code ?: "",
+                getString(if (gameController.onlineColor() == PieceColor.RED) R.string.red_short else R.string.black_short)
+            )
             GameMode.PLAYER_VS_PLAYER -> getString(R.string.mode_pvp_long)
             GameMode.PLAYER_VS_AI -> {
                 val playerColor = getString(
@@ -705,6 +757,15 @@ class MainActivity : AppCompatActivity() {
             GameMode.PLAYER_VS_AI ->
                 if (gameController.getAIColor() == PieceColor.RED) R.string.role_ai to R.string.role_player
                 else R.string.role_player to R.string.role_ai
+            GameMode.ONLINE -> {
+                val friend = when {
+                    onlineSession?.opponentJoined != true -> R.string.role_friend_waiting
+                    opponentConnected == true -> R.string.role_friend_online
+                    else -> R.string.role_friend_offline
+                }
+                if (gameController.onlineColor() == PieceColor.RED) R.string.role_you to friend
+                else friend to R.string.role_you
+            }
         }
         redRoleText.setText(redRole)
         blackRoleText.setText(blackRole)
@@ -712,6 +773,7 @@ class MainActivity : AppCompatActivity() {
         val locked = isRatedGame()
         hintButton.alpha = if (locked) 0.4f else 1f
         undoButton.alpha = if (locked) 0.4f else 1f
+        applyOnlineUi()
         updateStatus()
     }
 
@@ -722,6 +784,10 @@ class MainActivity : AppCompatActivity() {
      * or, after a run of wins or losses at one level, move to the next level.
      */
     private fun showGameOver(result: GameController.GameResult) {
+        if (onlineSession != null) {
+            showOnlineGameOver(result)
+            return
+        }
         val playerColor = gameController.getAIColor().opposite()
         if (gameController.isEndgameMode()) {
             showEndgameResult(solved = result is GameController.GameResult.Checkmate && result.winner == playerColor)
@@ -762,8 +828,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** The human player in this game, if exactly one side is human. */
-    private fun humanSide(): PieceColor? =
-        if (gameController.getGameMode() == GameMode.PLAYER_VS_AI) gameController.getAIColor().opposite() else null
+    private fun humanSide(): PieceColor? = when (gameController.getGameMode()) {
+        GameMode.PLAYER_VS_AI, GameMode.ONLINE -> gameController.getAIColor().opposite()
+        else -> null
+    }
 
     /**
      * Reviews the game on the board: replay it with the graph of how it went under the board,
@@ -772,6 +840,10 @@ class MainActivity : AppCompatActivity() {
      * when it is ready.
      */
     private fun startReview() {
+        if (onlineGameLive()) {
+            toast(R.string.online_after_game)
+            return
+        }
         if (gameController.getMoveHistory().isEmpty()) {
             toast(R.string.replay_none)
             return
@@ -1002,7 +1074,8 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.play_black_vs_ai),
             getString(R.string.two_players),
             getString(R.string.watch_ai),
-            getString(R.string.endgame_practice)
+            getString(R.string.endgame_practice),
+            getString(R.string.online_play)
         )
 
         AlertDialog.Builder(this, R.style.ChessDialogTheme)
@@ -1027,6 +1100,8 @@ class MainActivity : AppCompatActivity() {
                         showDifficultyDialog()
                     }
                     4 -> showEndgameDialog()
+                    // The game on the board was given up before this list opened.
+                    5 -> showOnlineMenu(confirmed = true)
                 }
             }
             .show()
@@ -1128,7 +1203,8 @@ class MainActivity : AppCompatActivity() {
     private val showEval: Boolean get() = settings.getBoolean(KEY_SHOW_EVAL, false)
 
     private fun applyEvalVisibility() {
-        evalRow.visibility = if (showEval) View.VISIBLE else View.GONE
+        // Never during an online game: the engine's reading would be help.
+        evalRow.visibility = if (showEval && !onlineGameLive()) View.VISIBLE else View.GONE
     }
 
     private fun toggleEval() {
@@ -1231,6 +1307,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun changeDifficulty() {
+        if (onlineSession != null) {
+            toast(R.string.online_no_difficulty)
+            return
+        }
         if (gameController.getMoveHistory().isEmpty()) {
             showDifficultyDialog()
             return
@@ -1259,39 +1339,36 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showMoreDialog() {
-        val items = arrayOf(
-            getString(R.string.new_game),
-            getString(if (isMuted) R.string.unmute else R.string.mute),
-            getString(R.string.change_difficulty),
-            getString(if (showEval) R.string.hide_eval else R.string.show_eval),
-            getString(R.string.analysis_title),
-            getString(R.string.replay_title),
-            getString(R.string.export),
-            getString(R.string.my_stats),
-            getString(R.string.about),
-            getString(R.string.theme_title)
+        val entries = listOf<Pair<String, () -> Unit>>(
+            getString(R.string.new_game) to {
+                if (onlineSession != null) confirmLeaveOnline { showNewGameDialog() }
+                else confirmAbandonThen { showNewGameDialog() }
+            },
+            getString(R.string.online_play) to { showOnlineMenu() },
+            getString(if (isMuted) R.string.unmute else R.string.mute) to { toggleMute() },
+            getString(R.string.change_difficulty) to { changeDifficulty() },
+            getString(if (showEval) R.string.hide_eval else R.string.show_eval) to { toggleEval() },
+            getString(R.string.analysis_title) to { startReview() },
+            getString(R.string.replay_title) to { toggleReplay() },
+            getString(R.string.export) to { exportMoveHistory() },
+            getString(R.string.my_stats) to { showStatsDialog() },
+            getString(R.string.about) to { showAboutDialog() },
+            getString(R.string.theme_title) to { showThemeDialog() }
         )
 
         AlertDialog.Builder(this, R.style.ChessDialogTheme)
             .setTitle(R.string.more)
-            .setAdapter(styledListAdapter(items)) { _, which ->
-                when (which) {
-                    0 -> confirmAbandonThen { showNewGameDialog() }
-                    1 -> toggleMute()
-                    2 -> changeDifficulty()
-                    3 -> toggleEval()
-                    4 -> startReview()
-                    5 -> toggleReplay()
-                    6 -> exportMoveHistory()
-                    7 -> showStatsDialog()
-                    8 -> showAboutDialog()
-                    9 -> showThemeDialog()
-                }
+            .setAdapter(styledListAdapter(entries.map { it.first }.toTypedArray())) { _, which ->
+                entries[which].second()
             }
             .show()
     }
 
     private fun toggleReplay() {
+        if (onlineGameLive() && !gameController.isInReplayMode()) {
+            toast(R.string.online_after_game)
+            return
+        }
         if (gameController.isInReplayMode()) {
             exitReplay()
             toast(R.string.replay_exited)
@@ -1361,9 +1438,12 @@ class MainActivity : AppCompatActivity() {
         sb.appendLine("─".repeat(30))
 
         val board = gameController.getCurrentBoard()
+        val onlineEnd = onlineResult
         val result = when {
             board.isCheckmate() -> getString(R.string.wins_short, sideName(board.currentPlayer.opposite()))
             board.isStalemate() -> getString(R.string.draw_short)
+            onlineSession != null && onlineEnd != null ->
+                onlineEnd.winner?.let { getString(R.string.wins_short, sideName(it)) } ?: getString(R.string.draw_short)
             else -> getString(R.string.result_unfinished)
         }
         sb.appendLine(getString(R.string.export_result, result))
@@ -1389,12 +1469,586 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    // ── Playing a friend online ──
+    // The room and its moves are in Firebase (online.OnlineSession), shared with the web version.
+    // The board here is the controller's ONLINE mode: your own pieces only, turned round when you
+    // play black, no engine, no hints, no take-backs. The hint and undo buttons become resign and
+    // leave for the length of the game.
+
+    private var onlineSession: OnlineSession? = null
+    /** The moves as the database has them, with the server's time of each (for the clocks). */
+    private var onlineMoves: List<OnlineProtocol.WireMove> = emptyList()
+    private var onlineStartedAt: Long? = null
+    /** Server time the clocks stopped, for a game that ended off the board (a resignation). */
+    private var onlineEndedAt: Long? = null
+    private var onlineResult: OnlineProtocol.WireResult? = null
+    /** The friend's connection; null until they have taken their seat. */
+    private var opponentConnected: Boolean? = null
+    /** Shown in the status line once this phone has been without a connection for a moment. */
+    private var onlineReconnecting = false
+    private var waitingDialog: AlertDialog? = null
+    private val reconnectHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val showReconnecting = Runnable {
+        if (onlineSession?.connected == false) {
+            onlineReconnecting = true
+            updateStatus()
+        }
+    }
+
+    /** An online game with both players seated and no result yet. */
+    private fun onlineGameLive(): Boolean = onlineSession != null && !gameController.isGameOver()
+
+    /** Each side's time from the server's timestamps, so both players' clocks agree. */
+    private val onlineClock = object : GameController.ClockSource {
+        private fun times(): Pair<Long, Long> {
+            val session = onlineSession ?: return 0L to 0L
+            val now = when {
+                gameController.isGameOver() -> onlineEndedAt
+                else -> session.serverNow()
+            }
+            return OnlineProtocol.sideTimes(onlineStartedAt, onlineMoves.map { it.serverTime }, now)
+        }
+
+        override fun elapsed(side: PieceColor): Long = times().let { if (side == PieceColor.RED) it.first else it.second }
+
+        override fun running(): PieceColor? {
+            val session = onlineSession ?: return null
+            if (!session.opponentJoined || onlineStartedAt == null) return null
+            return gameController.getCurrentBoard().currentPlayer
+        }
+    }
+
+    private val onlineListener = object : OnlineSession.Listener {
+        override fun onOpponentJoined() {
+            val wasWaiting = waitingDialog != null
+            waitingDialog?.dismiss()
+            waitingDialog = null
+            if (wasWaiting) Snackbar.make(boardView, R.string.online_joined, Snackbar.LENGTH_LONG).show()
+            updateGameModeDisplay()
+        }
+
+        override fun onMoves(moves: List<OnlineProtocol.WireMove>) = syncOnlineMoves(moves)
+
+        override fun onOpponentConnected(connected: Boolean?) {
+            opponentConnected = connected
+            updateGameModeDisplay()
+        }
+
+        override fun onConnectionChanged(connected: Boolean) {
+            reconnectHandler.removeCallbacks(showReconnecting)
+            if (connected) {
+                onlineReconnecting = false
+                updateStatus()
+            } else {
+                reconnectHandler.postDelayed(showReconnecting, RECONNECTING_DELAY_MS)
+            }
+        }
+
+        override fun onResult(result: OnlineProtocol.WireResult) {
+            // A resignation's server time is where both players' clocks stop.
+            result.serverTime?.let {
+                onlineEndedAt = it
+                updateClocks()
+            }
+            if (onlineResult != null) return
+            // Theirs arrived first (a resignation, or a result this board has not reached).
+            if (!gameController.isGameOver()) {
+                onlineEndedAt = result.serverTime ?: onlineSession?.serverNow()
+                gameController.endOnlineGame()
+                audioManager.playGameOverSound()
+            }
+            showOnlineResult(result)
+        }
+
+        override fun onStartedAt(serverTime: Long?) {
+            onlineStartedAt = serverTime
+            updateClocks()
+        }
+
+        override fun onRoomClosed() {
+            if (gameController.isGameOver()) return
+            toast(R.string.online_room_closed)
+            leaveOnline(finishedBefore = true)
+        }
+    }
+
+    /**
+     * Create a room or join one; one online game at a time. [confirmed]: the player already
+     * agreed to give up the game on the board (through New game), so it is not asked again.
+     */
+    private fun showOnlineMenu(confirmed: Boolean = false) {
+        if (onlineSession != null) {
+            toast(R.string.online_already)
+            return
+        }
+        AlertDialog.Builder(this, R.style.ChessDialogTheme)
+            .setTitle(R.string.online_play)
+            .setAdapter(styledListAdapter(arrayOf(getString(R.string.online_create), getString(R.string.online_join)))) { _, which ->
+                if (which == 0) showPickSideDialog(confirmed) else showJoinDialog(confirmed = confirmed)
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun showPickSideDialog(confirmed: Boolean) {
+        val sides = arrayOf(getString(R.string.online_side_red), getString(R.string.online_side_black), getString(R.string.online_side_random))
+        AlertDialog.Builder(this, R.style.ChessDialogTheme)
+            .setTitle(R.string.online_pick_side)
+            .setAdapter(styledListAdapter(sides)) { _, which ->
+                val color = when (which) {
+                    0 -> PieceColor.RED
+                    1 -> PieceColor.BLACK
+                    else -> if (java.security.SecureRandom().nextBoolean()) PieceColor.RED else PieceColor.BLACK
+                }
+                if (confirmed) createRoom(color) else confirmAbandonThen { createRoom(color) }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun progressDialog(): AlertDialog = AlertDialog.Builder(this, R.style.ChessDialogTheme)
+        .setMessage(R.string.online_connecting)
+        .setCancelable(false)
+        .show()
+
+    private fun createRoom(color: PieceColor) {
+        val progress = progressDialog()
+        lifecycleScope.launch {
+            try {
+                val session = OnlineSession.create(color)
+                progress.dismiss()
+                beginOnline(session, emptyList())
+                showWaitingDialog(session)
+            } catch (e: OnlineSession.OnlineException) {
+                progress.dismiss()
+                showOnlineError(e) { createRoom(color) }
+            }
+        }
+    }
+
+    /** The room's code, large, with a share button; the game begins when the friend joins. */
+    private fun showWaitingDialog(session: OnlineSession) {
+        val dp = resources.displayMetrics.density
+        val codeView = TextView(this).apply {
+            text = session.code
+            textSize = 40f
+            typeface = Typeface.MONOSPACE
+            letterSpacing = 0.18f
+            gravity = Gravity.CENTER
+            setTextIsSelectable(true)
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.chess_accent))
+        }
+        val message = TextView(this).apply {
+            text = getString(R.string.online_room_message, sideName(session.myColor))
+            textSize = 14f
+            setLineSpacing(3 * dp, 1f)
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.chess_text))
+        }
+        val waiting = TextView(this).apply {
+            setText(R.string.online_waiting)
+            textSize = 13f
+            gravity = Gravity.CENTER
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.chess_text_secondary))
+            setPadding(0, (12 * dp).toInt(), 0, 0)
+        }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((24 * dp).toInt(), (8 * dp).toInt(), (24 * dp).toInt(), 0)
+            addView(codeView)
+            addView(message)
+            addView(waiting)
+        }
+        val dialog = AlertDialog.Builder(this, R.style.ChessDialogTheme)
+            .setTitle(R.string.online_room_title)
+            .setView(content)
+            .setPositiveButton(R.string.online_share, null)
+            .setNegativeButton(R.string.online_cancel_room, null)
+            .setCancelable(false)
+            .create()
+        dialog.setOnShowListener {
+            // Sharing keeps the dialog up; only cancelling (or the friend arriving) closes it.
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { shareRoom(session.code) }
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener {
+                dialog.dismiss()
+                waitingDialog = null
+                leaveOnline(finishedBefore = true)
+            }
+        }
+        waitingDialog = dialog
+        dialog.show()
+    }
+
+    private fun shareRoom(code: String) {
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, getString(R.string.online_share_text, code, OnlineProtocol.joinLink(code)))
+        }
+        startActivity(Intent.createChooser(intent, getString(R.string.online_share_title)))
+    }
+
+    private fun showJoinDialog(prefill: String = "", confirmed: Boolean = false) {
+        val dp = resources.displayMetrics.density
+        val input = android.widget.EditText(this).apply {
+            setText(prefill)
+            setHint(R.string.online_join_hint)
+            textSize = 28f
+            typeface = Typeface.MONOSPACE
+            letterSpacing = 0.15f
+            gravity = Gravity.CENTER
+            isSingleLine = true
+            // A code, not words: the visible-password variation and ASCII flag keep a Pinyin (or
+            // any composing) keyboard from turning the letters into characters, and the filter
+            // drops anything that cannot be part of a code.
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or
+                android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            imeOptions = android.view.inputmethod.EditorInfo.IME_FLAG_FORCE_ASCII or
+                android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+            filters = arrayOf(
+                android.text.InputFilter { source, start, end, _, _, _ ->
+                    val kept = source.subSequence(start, end).filter { it.isLetterOrDigit() && it.code < 128 || it == '-' || it == ' ' }
+                    if (kept.length == end - start) null else kept
+                },
+                android.text.InputFilter.AllCaps(),
+                android.text.InputFilter.LengthFilter(OnlineProtocol.CODE_LENGTH + 2)
+            )
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.chess_text))
+        }
+        val error = TextView(this).apply {
+            textSize = 13f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.chess_red_side))
+        }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((24 * dp).toInt(), (8 * dp).toInt(), (24 * dp).toInt(), 0)
+            addView(input)
+            addView(error)
+        }
+        val dialog = AlertDialog.Builder(this, R.style.ChessDialogTheme)
+            .setTitle(R.string.online_join_title)
+            .setView(content)
+            .setPositiveButton(R.string.online_join_button, null)
+            .setNegativeButton(R.string.cancel, null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val code = OnlineProtocol.normalizeCode(input.text.toString())
+                if (!OnlineProtocol.isValidCode(code)) {
+                    error.setText(R.string.online_code_invalid)
+                    return@setOnClickListener
+                }
+                dialog.dismiss()
+                if (confirmed) joinRoom(code) else confirmAbandonThen { joinRoom(code) }
+            }
+        }
+        dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+        dialog.show()
+        input.requestFocus()
+    }
+
+    private fun joinRoom(code: String) {
+        val progress = progressDialog()
+        lifecycleScope.launch {
+            try {
+                val session = OnlineSession.join(code)
+                progress.dismiss()
+                beginOnline(session, emptyList())
+                Snackbar.make(boardView, getString(R.string.online_you_play, sideName(session.myColor)), Snackbar.LENGTH_LONG).show()
+            } catch (e: OnlineSession.OnlineException) {
+                progress.dismiss()
+                showOnlineError(e) { showJoinDialog(code, confirmed = true) }
+            }
+        }
+    }
+
+    private fun showOnlineError(e: OnlineSession.OnlineException, retry: () -> Unit) {
+        val message = when (e.reason) {
+            OnlineSession.Reason.NOT_FOUND -> R.string.online_not_found
+            OnlineSession.Reason.FULL -> R.string.online_full
+            OnlineSession.Reason.FINISHED -> R.string.online_finished
+            OnlineSession.Reason.NETWORK -> R.string.online_network_error
+        }
+        AlertDialog.Builder(this, R.style.ChessDialogTheme)
+            .setTitle(R.string.online_error_title)
+            .setMessage(message)
+            .setPositiveButton(R.string.online_retry) { _, _ -> retry() }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    /** Puts [session]'s game on the board, with [moves] already played, and starts listening. */
+    private fun beginOnline(session: OnlineSession, moves: List<OnlineProtocol.WireMove>) {
+        if (gameController.isInReplayMode()) exitReplay()
+        stopReview()
+        // The game on the board is given up for this one, as with any new game.
+        gameController.deleteSavedGame(this)
+        onlineSession = session
+        onlineMoves = moves
+        onlineStartedAt = null
+        onlineEndedAt = null
+        onlineResult = null
+        opponentConnected = null
+        onlineReconnecting = false
+        OnlineStore.save(this, session.code, session.myColor)
+        gameController.onlineClock = onlineClock
+        gameController.startOnlineGame(session.myColor, moves.map { it.from to it.to })
+        boardView.clearSelection()
+        boardView.highlightMove(gameController.getMoveHistory().lastOrNull())
+        session.listener = onlineListener
+        session.start()
+        applyEvalVisibility()
+        updateGameModeDisplay()
+    }
+
+    /**
+     * Goes back to the room of an online game the app was taken away from (its process ended,
+     * say), if that game is still on. Returns false when there is none to go back to.
+     */
+    private fun rejoinSavedOnlineGame(): Boolean {
+        val saved = OnlineStore.load(this) ?: return false
+        gameController.deleteSavedGame(this)
+        statusText.text = getString(R.string.online_rejoining, saved.code)
+        lifecycleScope.launch {
+            try {
+                val snapshot = OnlineSession.resume(saved.code, saved.color)
+                if (snapshot == null || snapshot.result != null || snapshot.status == OnlineProtocol.STATUS_FINISHED) {
+                    OnlineStore.clear(this@MainActivity)
+                    updateStatus()
+                    Snackbar.make(boardView, getString(R.string.online_ended_away, saved.code), Snackbar.LENGTH_LONG).show()
+                    return@launch
+                }
+                beginOnline(snapshot.session, snapshot.moves)
+                if (snapshot.status == OnlineProtocol.STATUS_WAITING) showWaitingDialog(snapshot.session)
+                // The last move may have ended the game before its result was written.
+                gameController.settleOnlineGame()
+            } catch (e: OnlineSession.OnlineException) {
+                AlertDialog.Builder(this@MainActivity, R.style.ChessDialogTheme)
+                    .setTitle(getString(R.string.online_rejoin_failed, saved.code))
+                    .setMessage(R.string.online_network_error)
+                    .setPositiveButton(R.string.online_retry) { _, _ -> rejoinSavedOnlineGame() }
+                    .setNegativeButton(R.string.online_leave) { _, _ ->
+                        OnlineStore.clear(this@MainActivity)
+                        updateStatus()
+                    }
+                    .setCancelable(false)
+                    .show()
+            }
+        }
+        return true
+    }
+
+    /**
+     * Brings the board in line with the database's list: the friend's new moves are played on
+     * it one by one; if the two disagree (a move of ours the database turned down, or moves of
+     * ours this board never saw), the board is rebuilt from the list.
+     */
+    private fun syncOnlineMoves(moves: List<OnlineProtocol.WireMove>) {
+        val session = onlineSession ?: return
+        onlineMoves = moves
+        if (gameController.isGameOver()) {
+            updateClocks()
+            return
+        }
+        val history = gameController.getMoveHistory()
+        val inStep = history.size <= moves.size &&
+            history.indices.all { history[it].from == moves[it].from && history[it].to == moves[it].to }
+        if (inStep) {
+            var next = history.size
+            while (next < moves.size &&
+                OnlineProtocol.moverOf(next) == session.opponentColor &&
+                gameController.applyRemoteMove(moves[next].from, moves[next].to)
+            ) next++
+            if (next == moves.size) {
+                updateClocks()
+                return
+            }
+        }
+        val played = gameController.startOnlineGame(session.myColor, moves.map { it.from to it.to })
+        if (played < moves.size) android.util.Log.w("MainActivity", "online move $played of room ${session.code} is not legal here")
+        boardView.clearSelection()
+        boardView.highlightMove(gameController.getMoveHistory().lastOrNull())
+        if (history.size > moves.size) toast(R.string.online_move_failed)
+        gameController.settleOnlineGame()
+        updateGameModeDisplay()
+    }
+
+    private fun onlineStatusText(session: OnlineSession): String {
+        val board = gameController.getCurrentBoard()
+        val result = onlineResult
+        val mine = board.currentPlayer == session.myColor
+        return when {
+            result != null -> getString(
+                when (result.winner) {
+                    null -> R.string.online_draw
+                    session.myColor -> R.string.online_you_win
+                    else -> R.string.online_you_lose
+                }
+            )
+            gameController.isGameOver() -> getString(R.string.online_game_over)
+            !session.opponentJoined -> getString(R.string.online_waiting_short)
+            onlineReconnecting -> getString(R.string.online_reconnecting)
+            else -> {
+                val turn = when {
+                    board.isInCheck(board.currentPlayer) -> getString(if (mine) R.string.online_you_in_check else R.string.online_they_in_check)
+                    else -> getString(if (mine) R.string.online_your_move else R.string.online_their_move)
+                }
+                // Said here as well as on the friend's card, where a narrow screen may cut it off.
+                if (opponentConnected == false) getString(R.string.online_friend_offline_status, turn) else turn
+            }
+        }
+    }
+
+    /** The board, the buttons and the evaluation row for an online game, or back to normal. */
+    private fun applyOnlineUi() {
+        val session = onlineSession
+        boardView.flipped = session?.myColor == PieceColor.BLACK
+        boardView.selectableColor = session?.myColor
+        if (session != null) {
+            hintButton.setText(R.string.online_resign)
+            hintButton.setIconResource(R.drawable.ic_flag)
+            undoButton.setText(R.string.online_leave)
+            undoButton.setIconResource(R.drawable.ic_leave)
+            hintButton.alpha = if (onlineGameLive() && session.opponentJoined) 1f else 0.4f
+            undoButton.alpha = 1f
+        } else if (hintButton.text != getString(R.string.hint)) {
+            hintButton.setText(R.string.hint)
+            hintButton.setIconResource(R.drawable.ic_hint)
+            undoButton.setText(R.string.undo)
+            undoButton.setIconResource(R.drawable.ic_undo)
+        }
+        applyEvalVisibility()
+    }
+
+    private fun confirmResign() {
+        val session = onlineSession ?: return
+        if (!session.opponentJoined || gameController.isGameOver()) {
+            toast(if (gameController.isGameOver()) R.string.online_game_over else R.string.online_waiting_short)
+            return
+        }
+        AlertDialog.Builder(this, R.style.ChessDialogTheme)
+            .setTitle(R.string.online_resign_title)
+            .setMessage(R.string.online_resign_message)
+            .setPositiveButton(R.string.online_resign) { _, _ -> resignOnline() }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun resignOnline() {
+        val session = onlineSession ?: return
+        if (gameController.isGameOver()) return
+        onlineEndedAt = session.serverNow()
+        gameController.endOnlineGame()
+        session.resign()
+        audioManager.playGameOverSound()
+        showOnlineResult(OnlineProtocol.WireResult(OnlineProtocol.ResultType.RESIGN, session.opponentColor), dialog = false)
+    }
+
+    /** Leaving a game still being played resigns it; [then] runs once the game is left. */
+    private fun confirmLeaveOnline(then: (() -> Unit)? = null) {
+        val session = onlineSession ?: return
+        if (!session.opponentJoined || gameController.isGameOver()) {
+            leaveOnline(finishedBefore = true)
+            then?.invoke()
+            return
+        }
+        AlertDialog.Builder(this, R.style.ChessDialogTheme)
+            .setTitle(R.string.online_leave_title)
+            .setMessage(R.string.online_leave_message)
+            .setPositiveButton(R.string.online_leave) { _, _ ->
+                resignOnline()
+                leaveOnline(finishedBefore = false)
+                then?.invoke()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    /**
+     * Out of the room and back to a game against the engine. A waiting room is deleted; a
+     * finished one too if the friend has already gone ([finishedBefore]: the game ended before
+     * this player left, so the friend has seen the result), otherwise it stays for them.
+     */
+    private fun leaveOnline(finishedBefore: Boolean) {
+        val session = onlineSession ?: return
+        val friendGone = opponentConnected != true
+        onlineSession = null
+        session.listener = null
+        OnlineStore.clear(this)
+        waitingDialog?.dismiss()
+        waitingDialog = null
+        reconnectHandler.removeCallbacks(showReconnecting)
+        // Not tied to this screen: the room should be tidied even if the app closes meanwhile.
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+            session.leave(roomFinished = finishedBefore, opponentGone = friendGone)
+        }
+        onlineMoves = emptyList()
+        onlineResult = null
+        if (gameController.isInReplayMode()) exitReplay()
+        stopReview()
+        gameController.onlineClock = null
+        gameController.setGameMode(GameMode.PLAYER_VS_AI, PieceColor.BLACK)
+        gameController.startNewGame()
+        updateGameModeDisplay()
+    }
+
+    /** This board reached the end (mate, stalemate, a repetition): tell the room, then the player. */
+    private fun showOnlineGameOver(result: GameController.GameResult) {
+        val session = onlineSession ?: return
+        val wire = when (result) {
+            is GameController.GameResult.Checkmate -> OnlineProtocol.WireResult(OnlineProtocol.ResultType.CHECKMATE, result.winner)
+            is GameController.GameResult.PerpetualCheck -> OnlineProtocol.WireResult(OnlineProtocol.ResultType.PERPETUAL_CHECK, result.winner)
+            GameController.GameResult.Stalemate -> OnlineProtocol.WireResult(OnlineProtocol.ResultType.STALEMATE, null)
+            GameController.GameResult.RepetitionDraw -> OnlineProtocol.WireResult(OnlineProtocol.ResultType.REPETITION, null)
+        }
+        // The clocks stop on the last move.
+        onlineEndedAt = null
+        // Posted: when this player's move ended the game, the move itself is sent first.
+        boardView.post { session.sendResult(wire) }
+        showOnlineResult(wire)
+    }
+
+    private fun showOnlineResult(result: OnlineProtocol.WireResult, dialog: Boolean = true) {
+        val session = onlineSession ?: return
+        if (onlineResult != null) return
+        onlineResult = result
+        updateGameModeDisplay()
+        updateClocks()
+        val title = when (result.winner) {
+            null -> R.string.online_draw
+            session.myColor -> R.string.online_you_win
+            else -> R.string.online_you_lose
+        }
+        val reason = when (result.type) {
+            OnlineProtocol.ResultType.CHECKMATE -> R.string.online_reason_checkmate
+            OnlineProtocol.ResultType.STALEMATE -> R.string.online_reason_stalemate
+            OnlineProtocol.ResultType.PERPETUAL_CHECK -> R.string.online_reason_perpetual
+            OnlineProtocol.ResultType.REPETITION -> R.string.online_reason_repetition
+            OnlineProtocol.ResultType.RESIGN ->
+                if (result.winner == session.myColor) R.string.online_reason_they_resigned else R.string.online_reason_you_resigned
+        }
+        if (!dialog) {
+            Snackbar.make(boardView, getString(reason), Snackbar.LENGTH_LONG).show()
+            return
+        }
+        val builder = AlertDialog.Builder(this, R.style.ChessDialogTheme)
+            .setTitle(title)
+            .setMessage(reason)
+            .setPositiveButton(R.string.online_leave) { _, _ -> leaveOnline(finishedBefore = true) }
+            .setNeutralButton(R.string.close, null)
+        if (gameController.getMoveHistory().isNotEmpty()) {
+            builder.setNegativeButton(R.string.review_game) { _, _ -> startReview() }
+        }
+        builder.show()
+    }
+
     private fun toast(resId: Int) {
         Toast.makeText(this, resId, Toast.LENGTH_SHORT).show()
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        // The room stays; the next start goes back to it (OnlineStore).
+        onlineSession?.let { it.listener = null; it.stop() }
         stopThinkingAnimation()
         gameController.destroy()
         audioManager.release()

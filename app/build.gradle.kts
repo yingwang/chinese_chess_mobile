@@ -3,6 +3,9 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    // Reads app/google-services.json (gitignored, like the keystore) for the online game's
+    // Firebase project; it holds a client entry for the release id and for the .preview one.
+    id("com.google.gms.google-services")
 }
 
 val keystoreProperties = Properties().apply {
@@ -23,8 +26,8 @@ android {
         applicationId = "com.yingwang.chinesechess"
         minSdk = 24
         targetSdk = 36
-        versionCode = 23
-        versionName = "2.4.8"
+        versionCode = 24
+        versionName = "2.5.0"
     }
 
     // Release signing comes from keystore.properties in the repo root (gitignored) or from
@@ -97,6 +100,12 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
+    // Playing a friend online: anonymous sign-in and the Realtime Database the web version uses.
+    implementation(platform("com.google.firebase:firebase-bom:33.16.0"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-database")
 
     testImplementation("junit:junit:4.13.2")
     // Android's org.json is a stub on the JVM; the tests read the endgame data with the real one.

@@ -244,6 +244,33 @@ class BoardView @JvmOverloads constructor(
         setLayerType(LAYER_TYPE_SOFTWARE, null)
     }
 
+    /**
+     * Turned round for a player on black in an online game: black's pieces at the bottom. Only
+     * the drawing and the touch turn (see [BoardOrientation]); the file numbers swap edges.
+     */
+    var flipped = false
+        set(value) {
+            if (field == value) return
+            field = value
+            if (width > 0 && height > 0) {
+                surfaceBitmap?.recycle()
+                surfaceBitmap = buildSurface(width, height)
+            }
+            invalidate()
+        }
+
+    /** When set, only pieces of this colour can be picked up (your own side in an online game). */
+    var selectableColor: PieceColor? = null
+        set(value) {
+            if (field == value) return
+            field = value
+            clearSelection()
+        }
+
+    /** Centre of [pos] on screen, after turning the board round if it is [flipped]. */
+    private fun cellX(pos: Position): Float = offsetX + BoardOrientation.toScreen(pos, flipped).col * cellSize
+    private fun cellY(pos: Position): Float = offsetY + BoardOrientation.toScreen(pos, flipped).row * cellSize
+
     fun setBoard(newBoard: Board) {
         if (animatingMove != null) return // defer during animation
         board = newBoard
@@ -266,10 +293,10 @@ class BoardView @JvmOverloads constructor(
 
     private fun drawSuggestion(canvas: Canvas) {
         val move = suggestion ?: return
-        val x0 = offsetX + move.from.col * cellSize
-        val y0 = offsetY + move.from.row * cellSize
-        val x1 = offsetX + move.to.col * cellSize
-        val y1 = offsetY + move.to.row * cellSize
+        val x0 = cellX(move.from)
+        val y0 = cellY(move.from)
+        val x1 = cellX(move.to)
+        val y1 = cellY(move.to)
         val len = Math.hypot((x1 - x0).toDouble(), (y1 - y0).toDouble()).toFloat()
         if (len <= 0f) return
         val ux = (x1 - x0) / len
@@ -317,21 +344,21 @@ class BoardView @JvmOverloads constructor(
     private fun getDrawX(piece: Piece): Float {
         val anim = animatingMove
         if (anim != null && piece.position == anim.from && animationProgress < 1f) {
-            val fromX = offsetX + anim.from.col * cellSize
-            val toX = offsetX + anim.to.col * cellSize
+            val fromX = cellX(anim.from)
+            val toX = cellX(anim.to)
             return fromX + (toX - fromX) * animationProgress
         }
-        return offsetX + piece.position.col * cellSize
+        return cellX(piece.position)
     }
 
     private fun getDrawY(piece: Piece): Float {
         val anim = animatingMove
         if (anim != null && piece.position == anim.from && animationProgress < 1f) {
-            val fromY = offsetY + anim.from.row * cellSize
-            val toY = offsetY + anim.to.row * cellSize
+            val fromY = cellY(anim.from)
+            val toY = cellY(anim.to)
             return fromY + (toY - fromY) * animationProgress
         }
-        return offsetY + piece.position.row * cellSize
+        return cellY(piece.position)
     }
 
     // ── Measure & size ──
@@ -545,10 +572,12 @@ class BoardView @JvmOverloads constructor(
         val fm = coordPaint.fontMetrics
         val topY = offsetY - cellSize * 0.58f - (fm.ascent + fm.descent) / 2f
         val bottomY = offsetY + cellSize * 9.58f - (fm.ascent + fm.descent) / 2f
+        // Each side's files run from its own right: black's 1-9 along black's edge, red's along
+        // red's. Turned round, the edges swap and each row reads the other way.
         for (col in 0..8) {
             val x = offsetX + col * cellSize
-            c.drawText(TOP_FILES[col], x, topY, coordPaint)
-            c.drawText(bottomFiles[col], x, bottomY, coordPaint)
+            c.drawText(if (flipped) bottomFiles[8 - col] else TOP_FILES[col], x, topY, coordPaint)
+            c.drawText(if (flipped) TOP_FILES[8 - col] else bottomFiles[col], x, bottomY, coordPaint)
         }
     }
 
@@ -585,8 +614,8 @@ class BoardView @JvmOverloads constructor(
 
     /** Four corner brackets around an intersection, just outside a piece. */
     private fun drawBrackets(canvas: Canvas, pos: Position, paint: Paint) {
-        val cx = offsetX + pos.col * cellSize
-        val cy = offsetY + pos.row * cellSize
+        val cx = cellX(pos)
+        val cy = cellY(pos)
         val half = cellSize * 0.47f
         val arm = cellSize * 0.15f
         for ((dx, dy) in listOf(-1f to -1f, 1f to -1f, -1f to 1f, 1f to 1f)) {
@@ -599,8 +628,8 @@ class BoardView @JvmOverloads constructor(
 
     private fun drawSelection(canvas: Canvas) {
         selectedPosition?.let { pos ->
-            val x = offsetX + pos.col * cellSize
-            val y = offsetY + pos.row * cellSize
+            val x = cellX(pos)
+            val y = cellY(pos)
             val radius = cellSize * 0.4f
             canvas.drawCircle(x, y, radius + 3f, selectionRingPaint)
 
@@ -609,8 +638,8 @@ class BoardView @JvmOverloads constructor(
     }
 
     private fun drawLegalMoveIndicator(canvas: Canvas, move: Move) {
-        val x = offsetX + move.to.col * cellSize
-        val y = offsetY + move.to.row * cellSize
+        val x = cellX(move.to)
+        val y = cellY(move.to)
         if (move.capturedPiece != null) {
             canvas.drawCircle(x, y, cellSize * 0.42f, captureRingPaint)
             drawCornerCaptureMark(canvas, x, y)
@@ -730,8 +759,8 @@ class BoardView @JvmOverloads constructor(
     private fun getTouchedPosition(x: Float, y: Float): Position? {
         val col = ((x - offsetX + cellSize / 2) / cellSize).toInt()
         val row = ((y - offsetY + cellSize / 2) / cellSize).toInt()
-        val position = Position(row, col)
-        return if (position.isValid()) position else null
+        if (!Position(row, col).isValid()) return null
+        return BoardOrientation.fromScreen(row, col, flipped)
     }
 
     private fun handleTouch(pos: Position) {
@@ -748,7 +777,7 @@ class BoardView @JvmOverloads constructor(
             }
         }
 
-        if (piece != null && piece.color == board.currentPlayer) {
+        if (piece != null && piece.color == board.currentPlayer && (selectableColor == null || piece.color == selectableColor)) {
             performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
             selectedPosition = pos
             legalMoves = piece.getLegalMoves(board).filter { move ->

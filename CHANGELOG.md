@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-10-10
+
+### Added
+- Play a friend online (和朋友联机), in More and in the New game list: create a room as red, black or a random side and send its six-character code with the share sheet, or join a room by typing its code. Rooms are shared with the web version, so a phone can play a browser and the other way round. The board turns round when you play black; you move only your own pieces; there is no engine, no hint and no take-back while the game is on. The hint and undo buttons become Resign and Leave; leaving a game still being played resigns it
+- Each side's clock in an online game comes from the server's time of every move, so both players see the same times
+- The friend's card says whether they are online, and the status line says so too when they are not; a lost connection shows as reconnecting
+- The app lets go of the connection while it is out of sight and picks the game up again when it is back, also after its process was ended: it goes straight back to the room
+- After an online game it can be reviewed with the engine like any other
+
+### Changed
+- The app now asks for network access (INTERNET, ACCESS_NETWORK_STATE), used only by online play; everything else still works offline
+
 ## [2.4.8] - 2026-10-10
 
 ### Changed
