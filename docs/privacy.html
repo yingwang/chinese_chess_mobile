@@ -5,70 +5,79 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Privacy Policy - Chinese Chess (中国象棋)</title>
     <style>
+        * { box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            line-height: 1.6;
-            max-width: 800px;
+            font-family: 'Georgia', 'STSong', serif;
+            background: #2a1a0a;
+            color: #e8d8c8;
+            line-height: 1.7;
+            max-width: 820px;
             margin: 0 auto;
-            padding: 20px;
-            color: #333;
+            padding: 24px 16px 40px;
         }
+        a { color: #e8c880; }
+        .back { margin: 0 0 24px; }
+        .back a { text-decoration: none; color: #a08060; }
         h1 {
-            color: #8B4513;
-            border-bottom: 3px solid #D2691E;
-            padding-bottom: 10px;
+            color: #f0e0c0;
+            font-size: 1.9em;
+            line-height: 1.3;
+            margin: 0 0 8px;
         }
         h2 {
-            color: #654321;
-            margin-top: 30px;
+            color: #d4a860;
+            font-size: 1.5em;
+            margin: 0 0 16px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #4a3020;
         }
         h3 {
-            color: #8B4513;
+            color: #e8c880;
+            font-size: 1.15em;
+            margin: 0 0 6px;
         }
+        p, li { color: #c8b8a0; overflow-wrap: anywhere; }
         .highlight {
-            background-color: #FFF3E0;
-            padding: 15px;
-            border-left: 4px solid #D2691E;
-            margin: 20px 0;
+            background: #3a2818;
+            border-left: 4px solid #d4a860;
+            border-radius: 6px;
+            padding: 14px 16px;
+            margin: 16px 0 24px;
+            color: #f0e0c0;
             font-weight: bold;
         }
-        .section {
-            margin: 20px 0;
+        .section { margin: 22px 0; }
+        ul, ol { padding-left: 1.4em; margin: 8px 0; }
+        .language-switch { margin: 16px 0 32px; }
+        .language-switch a { margin-right: 14px; font-weight: bold; text-decoration: none; }
+        .chinese-section {
+            border-top: 1px solid #4a3020;
+            margin-top: 40px;
+            padding-top: 28px;
         }
-        ul {
-            list-style-type: none;
-            padding-left: 0;
-        }
-        ul li:before {
-            content: "✓ ";
-            color: #4CAF50;
-            font-weight: bold;
-            margin-right: 5px;
+        #delete-data {
+            background: #3a2818;
+            border: 1px solid #5a4030;
+            border-radius: 12px;
+            padding: 24px 20px;
         }
         .contact {
-            background-color: #F5F5F5;
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 30px;
-        }
-        .language-switch {
-            text-align: center;
-            margin: 20px 0;
-        }
-        .language-switch a {
-            margin: 0 10px;
-            color: #8B4513;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        .chinese-section {
-            border-top: 2px solid #DDD;
+            border-top: 1px solid #4a3020;
             margin-top: 40px;
-            padding-top: 20px;
+            padding-top: 24px;
         }
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 24px;
+            border-top: 1px solid #3a2818;
+        }
+        footer p { color: #a09080; }
     </style>
 </head>
 <body>
+    <p class="back"><a href="./">&larr; Chinese Chess / 中国象棋</a></p>
+
     <h1>Privacy Policy for Chinese Chess (中国象棋)</h1>
     <p><strong>Last Updated: October 10, 2026</strong></p>
 
@@ -263,7 +272,7 @@
         </p>
     </div>
 
-    <footer style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #DDD; color: #666;">
+    <footer>
         <p><strong>Summary</strong>: Chinese Chess is a privacy-friendly game. Everything except the optional "Play a friend online" works offline; an online game is stored under an anonymous ID, only for you and your friend. No personal details, ads, tracking or analytics.</p>
         <p><strong>总结</strong>：中国象棋是一个尊重隐私的游戏。除了可选的「和朋友联机」，所有功能都离线运行；联机的棋局以匿名 ID 保存，只给您和朋友两个人看。不收集个人信息，没有广告、追踪或统计。</p>
     </footer>

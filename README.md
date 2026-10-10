@@ -189,9 +189,9 @@ Special: **Flying General** rule — generals cannot face each other on an open 
 
 ## Privacy / 隐私
 
-This app does not collect any personal data. No internet connection required. No tracking, analytics, or ads. All game data is stored locally. See [Privacy Policy](PRIVACY_POLICY.md).
+This app does not collect your name, contact details or any other personal information, and has no tracking, analytics or ads. Everything except the optional "Play a friend online" works without a network connection. An online game is stored in Google Firebase under an anonymous ID, readable only by the two players, and its room is deleted when the host cancels it or the last player leaves a finished game. All other data is stored locally. See [Privacy Policy](PRIVACY_POLICY.md).
 
-本应用不收集任何个人数据。无需网络连接，无追踪、分析或广告。所有数据存储在本地。详见 [隐私政策](PRIVACY_POLICY.md)。
+本应用不收集姓名、联系方式或任何其他个人信息，无追踪、分析或广告。除了可选的「和朋友联机」，所有功能都无需网络连接。联机对局以匿名 ID 存在 Google Firebase 中，只有对局双方能读取；房主取消等人，或一盘下完、最后一方离开时，房间即被删除。其他数据都存储在本地。详见 [隐私政策](PRIVACY_POLICY.md)。
 
 ## License / 许可
 

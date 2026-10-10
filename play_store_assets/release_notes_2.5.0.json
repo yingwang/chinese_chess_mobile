@@ -1,0 +1,10 @@
+[
+ {
+  "language": "en-US",
+  "text": "Play a friend online, under More or New game: create a room and send its six-character code, or type a friend's code to join. Phones and the web version at yingwang.github.io/chinese_chess play each other. As Black you see the board turned round, your pieces at the bottom. If you switch away or the phone closes the app, the game reconnects when you return. Each side now has its own clock: only the side to move is timed, and the clocks stop in the background and are saved with the game."
+ },
+ {
+  "language": "zh-CN",
+  "text": "新增「和朋友联机」，在「更多」和「新游戏」里：建一个房间，把 6 位房间号发给朋友，或者输入朋友的房间号加入。手机和网页版（yingwang.github.io/chinese_chess）可以互相对下。执黑时棋盘会转过来，自己的棋子在下方。切到后台，或者手机把应用关掉了，回来时会自动重新连上这盘棋。另外，红黑双方现在各有自己的计时：轮到谁走就计谁的时间，切到后台时停下，计时随棋局一起保存。"
+ }
+]

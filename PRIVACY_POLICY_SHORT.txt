@@ -1,49 +1,60 @@
 PRIVACY POLICY FOR CHINESE CHESS (中国象棋)
 
-Last Updated: November 16, 2025
+Last Updated: October 10, 2026
 
-SUMMARY: We do not collect, store, or share any personal information.
+SUMMARY: We do not collect your name, contact details or any other personal information, and we do not sell or share data with third parties.
 
-Chinese Chess is a completely offline game that:
-✓ Does NOT require internet connection
-✓ Does NOT collect personal data
+Chinese Chess:
+✓ Works offline, except for the optional "Play a friend online" mode
+✓ Does NOT require an account
+✓ Does NOT ask for your name, email or phone number
 ✓ Does NOT track user behavior
 ✓ Does NOT use analytics
 ✓ Does NOT display ads
-✓ Does NOT share data with third parties
+✓ Does NOT sell or share data with third parties
+
+PLAYING A FRIEND ONLINE:
+Only when you use this mode, the app signs in to Google Firebase with an anonymous ID (no name, email or phone number) and stores the game there: the six-character room code, which side each player took, the moves with the server's time of each, the result, and whether each player is connected. Only the two players in the room can read or write the game. Everything is sent encrypted (HTTPS/TLS). A room is deleted when its host cancels it, and when the last player leaves a finished game. Firebase processes this data on our behalf; we use it only to run the game.
 
 LOCAL DATA STORAGE:
 The app stores these items ONLY on your device:
 - Game settings and preferences
 - Game statistics (scores, play time)
 - Audio preferences
+- During an online game, its room code and your side
 
-This data never leaves your device.
+This data is not sent anywhere.
 
 CHILDREN'S PRIVACY:
-Safe for all ages. Does not collect information from children under 13.
+Safe for all ages. Does not collect personal information from children under 13. Online play has no chat and asks for no name or contact details.
 
 PERMISSIONS:
 - Storage: Save game data locally
 - Audio: Play sounds and music
+- Internet and network state: Used only by "Play a friend online"
 
 DATA SECURITY:
-Since we don't collect data, there's no risk to your privacy.
+Online games are sent encrypted and only the two players in a room can read them. Everything else stays on your device.
+
+DELETING YOUR DATA:
+Uninstalling the app removes everything it keeps on your device. To have an online game deleted, email nickelyw@gmail.com with its room code; it will be deleted within 30 days.
 
 CONTACT:
 Email: nickelyw@gmail.com
 GitHub: https://github.com/yingwang/chinese_chess_mobile
 
-Full privacy policy: https://github.com/yingwang/chinese_chess_mobile/blob/main/PRIVACY_POLICY.md
+Full privacy policy: https://yingwang.github.io/chinese_chess_mobile/privacy.html
 
 ---
 
 隐私政策摘要：
 
-我们不收集、存储或共享任何个人信息。
+我们不收集姓名、联系方式或任何其他个人信息，也不出售数据或与第三方共享数据。
 
-中国象棋是完全离线的游戏，不需要网络，不收集个人数据，不跟踪用户行为，不显示广告。所有游戏数据仅存储在您的设备本地。
+除了可选的「和朋友联机」，中国象棋的所有功能都离线运行，不跟踪用户行为，不使用统计，不显示广告。使用联机时，应用以匿名 ID 登录 Google Firebase，只保存这盘棋（房间号、双方执哪一方、每一步棋及时间、对局结果、是否在线），只有房间里的两位棋手能读写，数据加密传输；房主取消等人时，或一盘下完、最后一方离开时，房间即被删除。其他游戏数据仅存储在您的设备本地。
 
-适合所有年龄段，不收集儿童信息。
+如需删除某盘联机对局，请把房间号发到 nickelyw@gmail.com，我们会在 30 天内删除。
+
+适合所有年龄段，不收集儿童的个人信息。
 
 联系方式：nickelyw@gmail.com

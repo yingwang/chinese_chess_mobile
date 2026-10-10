@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - The app now asks for network access (INTERNET, ACCESS_NETWORK_STATE), used only by online play; everything else still works offline
+- The privacy policy (PRIVACY_POLICY.md and .html, the short version, the site, which now carries it as privacy.html, and the README) and the store listings no longer call the app completely offline: they say what an online game stores in Firebase, who can read it, when a room is deleted and how to ask for one to be deleted
 
 ## [2.4.8] - 2026-10-10
 
