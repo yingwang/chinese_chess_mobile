@@ -335,6 +335,7 @@ class MainActivity : AppCompatActivity() {
         moreButton = findViewById(R.id.moreButton)
 
         moreButton.setOnClickListener { showMoreDialog() }
+        findViewById<View>(R.id.onlineExitButton).setOnClickListener { confirmLeaveOnline() }
 
         undoButton.setOnClickListener {
             if (onlineSession != null) {
@@ -1330,7 +1331,7 @@ class MainActivity : AppCompatActivity() {
                 (view as? TextView)?.apply {
                     setTextColor(ContextCompat.getColor(this@MainActivity, R.color.chess_text))
                     textSize = 16f
-                    typeface = Typeface.create(Typeface.SERIF, Typeface.NORMAL)
+                    typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
                     setBackgroundColor(Color.TRANSPARENT)
                 }
                 return view
@@ -1339,28 +1340,51 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showMoreDialog() {
-        val entries = listOf<Pair<String, () -> Unit>>(
-            getString(R.string.new_game) to {
-                if (onlineSession != null) confirmLeaveOnline { showNewGameDialog() }
-                else confirmAbandonThen { showNewGameDialog() }
-            },
-            getString(R.string.online_play) to { showOnlineMenu() },
-            getString(if (isMuted) R.string.unmute else R.string.mute) to { toggleMute() },
-            getString(R.string.change_difficulty) to { changeDifficulty() },
-            getString(if (showEval) R.string.hide_eval else R.string.show_eval) to { toggleEval() },
-            getString(R.string.analysis_title) to { startReview() },
-            getString(R.string.replay_title) to { toggleReplay() },
-            getString(R.string.export) to { exportMoveHistory() },
-            getString(R.string.my_stats) to { showStatsDialog() },
-            getString(R.string.about) to { showAboutDialog() },
-            getString(R.string.theme_title) to { showThemeDialog() }
-        )
-
+        val entries = mutableListOf<Pair<String, (() -> Unit)?>>()
+        fun section(title: Int) { entries += getString(title) to null }
+        fun action(title: Int, run: () -> Unit) { entries += getString(title) to run }
+        section(R.string.menu_play)
+        action(R.string.new_game) {
+            if (onlineSession != null) confirmLeaveOnline { showNewGameDialog() }
+            else confirmAbandonThen { showNewGameDialog() }
+        }
+        action(R.string.online_play) { showOnlineMenu() }
+        if (onlineSession == null) action(R.string.change_difficulty) { changeDifficulty() }
+        if (onlineSession != null && onlineGameLive() && onlineSession?.opponentJoined == true) {
+            action(R.string.online_resign) { confirmResign() }
+        }
+        section(R.string.menu_tools)
+        if (!onlineGameLive()) {
+            action(R.string.analysis_title) { startReview() }
+            action(R.string.replay_title) { toggleReplay() }
+        }
+        action(R.string.export) { exportMoveHistory() }
+        section(R.string.menu_settings)
+        action(if (isMuted) R.string.unmute else R.string.mute) { toggleMute() }
+        if (onlineSession == null) {
+            action(if (showEval) R.string.hide_eval else R.string.show_eval) { toggleEval() }
+        }
+        action(R.string.theme_title) { showThemeDialog() }
+        action(R.string.my_stats) { showStatsDialog() }
+        action(R.string.about) { showAboutDialog() }
+        val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, entries.map { it.first }) {
+            override fun areAllItemsEnabled() = false
+            override fun isEnabled(position: Int) = entries[position].second != null
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                return (super.getView(position, convertView, parent) as TextView).apply {
+                    val heading = !isEnabled(position)
+                    textSize = if (heading) 12f else 16f
+                    typeface = Typeface.create(Typeface.SANS_SERIF, if (heading) Typeface.BOLD else Typeface.NORMAL)
+                    setTextColor(ContextCompat.getColor(this@MainActivity,
+                        if (heading) R.color.chess_text_secondary else R.color.chess_text))
+                    minHeight = ((if (heading) 36 else 48) * resources.displayMetrics.density).toInt()
+                    setBackgroundColor(Color.TRANSPARENT)
+                }
+            }
+        }
         AlertDialog.Builder(this, R.style.ChessDialogTheme)
             .setTitle(R.string.more)
-            .setAdapter(styledListAdapter(entries.map { it.first }.toTypedArray())) { _, which ->
-                entries[which].second()
-            }
+            .setAdapter(adapter) { _, which -> entries[which].second?.invoke() }
             .show()
     }
 
@@ -1903,19 +1927,10 @@ class MainActivity : AppCompatActivity() {
         val session = onlineSession
         boardView.flipped = session?.myColor == PieceColor.BLACK
         boardView.selectableColor = session?.myColor
-        if (session != null) {
-            hintButton.setText(R.string.online_resign)
-            hintButton.setIconResource(R.drawable.ic_flag)
-            undoButton.setText(R.string.online_leave)
-            undoButton.setIconResource(R.drawable.ic_leave)
-            hintButton.alpha = if (onlineGameLive() && session.opponentJoined) 1f else 0.4f
-            undoButton.alpha = 1f
-        } else if (hintButton.text != getString(R.string.hint)) {
-            hintButton.setText(R.string.hint)
-            hintButton.setIconResource(R.drawable.ic_hint)
-            undoButton.setText(R.string.undo)
-            undoButton.setIconResource(R.drawable.ic_undo)
-        }
+        // Destructive online actions have their own locations, never the hint/undo buttons.
+        hintButton.visibility = if (session == null) View.VISIBLE else View.GONE
+        undoButton.visibility = if (session == null) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.onlineExitButton).visibility = if (session != null) View.VISIBLE else View.GONE
         applyEvalVisibility()
     }
 

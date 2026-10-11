@@ -266,4 +266,7 @@
     <string name="online_no_difficulty">联机对局里没有 AI 难度</string>
     <string name="online_move_failed">这步棋没有发出去，已经撤回</string>
     <string name="online_game_over">这一局已经结束</string>
+    <string name="menu_play">开始对局</string>
+    <string name="menu_tools">棋局工具</string>
+    <string name="menu_settings">设置</string>
 </resources>

@@ -50,7 +50,7 @@
 
     <style name="ChessDialogButton" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
         <item name="android:textColor">@color/chess_accent</item>
-        <item name="android:fontFamily">serif</item>
+        <item name="android:fontFamily">sans-serif</item>
         <item name="android:textStyle">bold</item>
     </style>
 
@@ -72,11 +72,11 @@
     <style name="Widget.Chess.Button" parent="Widget.MaterialComponents.Button.UnelevatedButton">
         <item name="backgroundTint">@color/chess_button_bg</item>
         <item name="strokeColor">@color/chess_card_stroke</item>
-        <item name="strokeWidth">1dp</item>
+        <item name="strokeWidth">0dp</item>
         <item name="android:textColor">@color/chess_button_text</item>
         <item name="rippleColor">@color/chess_button_ripple</item>
         <item name="cornerRadius">28dp</item>
-        <item name="android:fontFamily">serif</item>
+        <item name="android:fontFamily">sans-serif</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textSize">12sp</item>
         <item name="android:letterSpacing">0.06</item>
@@ -109,7 +109,7 @@
          rather than cutting if a large font setting leaves too little width. -->
     <style name="Widget.Chess.ReplayButton" parent="">
         <item name="android:textColor">@color/chess_accent</item>
-        <item name="android:fontFamily">serif</item>
+        <item name="android:fontFamily">sans-serif</item>
         <item name="android:textSize">14sp</item>
         <item name="android:gravity">center</item>
         <item name="android:maxLines">1</item>

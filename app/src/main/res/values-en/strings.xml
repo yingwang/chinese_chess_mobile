@@ -266,4 +266,7 @@
     <string name="online_no_difficulty">An online game has no AI level</string>
     <string name="online_move_failed">That move didn\'t go through and was taken back</string>
     <string name="online_game_over">This game is over</string>
+    <string name="menu_play">Play</string>
+    <string name="menu_tools">Game tools</string>
+    <string name="menu_settings">Settings</string>
 </resources>
