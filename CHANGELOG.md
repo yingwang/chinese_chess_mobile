@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.1] - 2026-10-11
+
+### Changed
+- A calmer screen: More is grouped under 开始对局 / 棋局工具 / 设置; text is sans-serif except the title; cards and buttons have no outlines. In an online game the hint and undo buttons are hidden and a Leave button sits at the top right; resign stays in More
+- Stalemate (困毙: not in check, no legal move) loses for the side that cannot move, as the rules of xiangqi have it; it was scored a draw. The game-over dialog says so and names the winner, and the result counts as a win or a loss for the rating, an endgame study, the exported record and the review. The fallback engine scores it like mate
+- Online, a stalemate is written with its winner (the web version does the same); one from an older version without a winner is read as a loss for the side to move on the final position
+
+### Fixed
+- Online, a move the database turned down was never taken back once it had ended the game (a mating move, say): the board stayed on a finished position the room did not have. The board is now rebuilt from the room's moves whenever the two disagree, finished or not, and the game goes on if the rebuilt position is not over, unless the room already holds a result (the friend resigned first). The result of a game this player's own move ended is written only once the database has taken that move
+- Online, if the friend dropped between taking the seat and starting the game, the room was playing but had no start time, and the clocks never ran. When the start time is still missing a few seconds after both seats are taken, either player now writes it with the status; a joiner whose own start is then turned down carries on in the game instead of reporting an error
+
 ## [2.5.0] - 2026-10-10
 
 ### Added

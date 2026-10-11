@@ -17,6 +17,10 @@ import java.util.Random
  *     moves    { 0: { fromRow, fromCol, toRow, toCol, t }, 1: {...}, ... }
  *     result   { type: checkmate|stalemate|perpetualCheck|repetition|resign, winner: red|black, t }
  *
+ * A stalemate (困毙, no legal move without being in check) loses for the side that cannot move,
+ * and carries the winner like a mate. Versions before 2.5.1 (and the web page before then) wrote
+ * it without one, as a draw; [completeResult] fills that winner in when such a result is read.
+ *
  * Squares are the same on both sides and need no translation: row 0 is black's back rank and
  * row 9 red's, column 0 is the left edge with red at the bottom ([Position], and Position in the
  * web's model.js). A player on black sees the board turned round, but that is only drawing
@@ -131,6 +135,46 @@ object OnlineProtocol {
         val map = value as? Map<*, *> ?: return null
         val type = ResultType.of(map["type"]) ?: return null
         return WireResult(type, parseColor(map["winner"]), (map["t"] as? Number)?.toLong())
+    }
+
+    /**
+     * [result] with the winner of a stalemate that came without one (written by an older
+     * version, which took it for a draw): the side that could not move is the one to move after
+     * the last of the game's [moveCount] moves, and the other side has won. Any other result is
+     * returned as it is.
+     */
+    fun completeResult(result: WireResult, moveCount: Int): WireResult =
+        if (result.type == ResultType.STALEMATE && result.winner == null) {
+            result.copy(winner = moverOf(moveCount).opposite())
+        } else result
+
+    /** What to do with the database's list of moves, held against the moves on the board. */
+    sealed class SyncAction {
+        /** The same moves on both: nothing to do. */
+        object InStep : SyncAction()
+        /** The board's moves begin the list; the ones from [from] on are new and are played on. */
+        data class PlayOn(val from: Int) : SyncAction()
+        /**
+         * The two disagree (the database turned down a move of ours, or has moves this board
+         * never saw in their place): the board is rebuilt from the list.
+         */
+        object Rebuild : SyncAction()
+    }
+
+    /**
+     * Compares the board's moves ([local], from and to of each) with the database's [remote]
+     * list. A game this board has already finished ([gameOver]) takes no new moves, so a longer
+     * list rebuilds it too; whatever the database holds is what the game is.
+     */
+    fun syncAction(local: List<Pair<Position, Position>>, remote: List<WireMove>, gameOver: Boolean): SyncAction {
+        val prefix = local.size <= remote.size &&
+            local.indices.all { local[it].first == remote[it].from && local[it].second == remote[it].to }
+        return when {
+            !prefix -> SyncAction.Rebuild
+            local.size == remote.size -> SyncAction.InStep
+            gameOver -> SyncAction.Rebuild
+            else -> SyncAction.PlayOn(local.size)
+        }
     }
 
     /**

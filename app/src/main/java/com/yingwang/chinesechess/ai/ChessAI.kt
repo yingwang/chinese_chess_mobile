@@ -199,11 +199,11 @@ class ChessAI(
             else quiescenceSearch(board, alpha, beta, maximizing, quiescenceDepth)
         }
 
-        if (board.isCheckmate()) {
+        // No legal move loses, in check (mate) or not (困毙): scored alike.
+        if (board.getAllLegalMoves().isEmpty()) {
             return if (maximizing) -CHECKMATE_SCORE + (maxDepth - depth)
             else CHECKMATE_SCORE - (maxDepth - depth)
         }
-        if (board.isStalemate()) return 0
 
         // Futility pruning: at shallow depths, skip moves that can't possibly raise alpha
         if (!inCheckNow && effectiveDepth <= 2 && Math.abs(alpha) < CHECKMATE_SCORE - 100) {

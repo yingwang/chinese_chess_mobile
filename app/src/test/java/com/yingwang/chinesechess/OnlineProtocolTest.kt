@@ -206,6 +206,69 @@ class OnlineProtocolTest {
         assertNull(OnlineProtocol.decodeResult(null))
     }
 
+    @Test
+    fun aStalemateCarriesItsWinnerAndOneWithoutIsGivenIt() {
+        // 2.5.1 on: the side that cannot move has lost, and the winner goes over the wire.
+        val stalemate = WireResult(ResultType.STALEMATE, PieceColor.RED)
+        assertEquals(mapOf("type" to "stalemate", "winner" to "red"), OnlineProtocol.encodeResult(stalemate))
+        assertEquals(stalemate, OnlineProtocol.decodeResult(mapOf("type" to "stalemate", "winner" to "red")))
+        // Read with the moves it ended, it stays as it is.
+        assertEquals(stalemate, OnlineProtocol.completeResult(stalemate, moveCount = 41))
+        assertEquals(stalemate, OnlineProtocol.completeResult(stalemate, moveCount = 40))
+
+        // Before 2.5.1 a stalemate was written as a draw, with no winner.
+        val old = OnlineProtocol.decodeResult(mapOf("type" to "stalemate"))
+        assertEquals(WireResult(ResultType.STALEMATE, null), old)
+        // After 41 moves black is to move and cannot: red has won.
+        assertEquals(WireResult(ResultType.STALEMATE, PieceColor.RED), OnlineProtocol.completeResult(old!!, moveCount = 41))
+        // After 40 it is red who cannot move: black has won.
+        assertEquals(WireResult(ResultType.STALEMATE, PieceColor.BLACK), OnlineProtocol.completeResult(old, moveCount = 40))
+
+        // Nothing else is touched: a repetition is still a draw, a mate keeps its winner.
+        val repetition = WireResult(ResultType.REPETITION, null)
+        assertEquals(repetition, OnlineProtocol.completeResult(repetition, moveCount = 41))
+        val mate = WireResult(ResultType.CHECKMATE, PieceColor.BLACK)
+        assertEquals(mate, OnlineProtocol.completeResult(mate, moveCount = 41))
+    }
+
+    // ── Bringing the board in line with the database ──
+
+    private fun wire(vararg squares: IntArray): List<WireMove> =
+        squares.map { WireMove(Position(it[0], it[1]), Position(it[2], it[3])) }
+
+    private fun local(moves: List<WireMove>): List<Pair<Position, Position>> = moves.map { it.from to it.to }
+
+    @Test
+    fun aBoardInStepWithTheDatabaseIsLeftAloneOverOrNot() {
+        val moves = wire(intArrayOf(7, 7, 7, 4), intArrayOf(0, 7, 2, 6))
+        for (over in listOf(false, true)) {
+            assertEquals(OnlineProtocol.SyncAction.InStep, OnlineProtocol.syncAction(local(moves), moves, gameOver = over))
+        }
+        assertEquals(OnlineProtocol.SyncAction.InStep, OnlineProtocol.syncAction(emptyList(), emptyList(), gameOver = false))
+    }
+
+    @Test
+    fun theFriendsNewMovesArePlayedOnWhileTheGameIsOn() {
+        val moves = wire(intArrayOf(7, 7, 7, 4), intArrayOf(0, 7, 2, 6), intArrayOf(9, 7, 7, 6))
+        assertEquals(OnlineProtocol.SyncAction.PlayOn(2), OnlineProtocol.syncAction(local(moves.take(2)), moves, gameOver = false))
+        assertEquals(OnlineProtocol.SyncAction.PlayOn(0), OnlineProtocol.syncAction(emptyList(), moves, gameOver = false))
+    }
+
+    @Test
+    fun aMoveTheDatabaseTurnedDownIsRolledBackEvenAfterItEndedTheGame() {
+        val moves = wire(intArrayOf(7, 7, 7, 4), intArrayOf(0, 7, 2, 6))
+        // This board played a third move, the one that mated, and the database never took it.
+        val withMate = local(moves) + (Position(9, 7) to Position(7, 6))
+        assertEquals(OnlineProtocol.SyncAction.Rebuild, OnlineProtocol.syncAction(withMate, moves, gameOver = true))
+        assertEquals(OnlineProtocol.SyncAction.Rebuild, OnlineProtocol.syncAction(withMate, moves, gameOver = false))
+        // A different move in its place.
+        val other = local(moves).dropLast(1) + (Position(0, 1) to Position(2, 2))
+        assertEquals(OnlineProtocol.SyncAction.Rebuild, OnlineProtocol.syncAction(other, moves, gameOver = true))
+        assertEquals(OnlineProtocol.SyncAction.Rebuild, OnlineProtocol.syncAction(other, moves, gameOver = false))
+        // A game this board finished takes no new moves: the list is played from the start.
+        assertEquals(OnlineProtocol.SyncAction.Rebuild, OnlineProtocol.syncAction(local(moves.take(1)), moves, gameOver = true))
+    }
+
     // ── Clocks ──
 
     @Test

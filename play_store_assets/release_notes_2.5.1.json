@@ -1,0 +1,10 @@
+[
+ {
+  "language": "en-US",
+  "text": "A calmer look: More is grouped into Play, Game tools and Settings, the type is cleaner, and in an online game Leave sits at the top of the screen. Stalemate (困毙: not in check, but no legal move) now counts as a loss for the side that cannot move, as the rules of xiangqi say, instead of a draw; that goes for games against the AI, online games and the rating. Online games also recover better from a dropped connection."
+ },
+ {
+  "language": "zh-CN",
+  "text": "界面更清爽：「更多」分成了「开始对局」「棋局工具」「设置」三组，字体更干净；联机对局里，「离开」放在了屏幕上方。困毙（没有被将军，却无子可走）现在按象棋规则判无子可走的一方负，不再算和棋，人机对局、联机对局和积分都是这样。另外，联机对局断线之后恢复得更好。"
+ }
+]

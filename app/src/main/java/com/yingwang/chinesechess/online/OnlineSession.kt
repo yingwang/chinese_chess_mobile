@@ -1,5 +1,7 @@
 package com.yingwang.chinesechess.online
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
@@ -68,7 +70,25 @@ class OnlineSession private constructor(
         private set
     var status: String? = null
         private set
+    /** When the game started, by the server's clock; null until someone has written it. */
+    private var startedAt: Long? = null
     private val attached = mutableListOf<Pair<DatabaseReference, ValueEventListener>>()
+    private val handler = Handler(Looper.getMainLooper())
+
+    /**
+     * The joiner starts the game, status and start time in one write, just after taking the
+     * seat. If it was cut off in between, this player writes them instead (startedAt only if it
+     * is still missing, which the rules require), so the clocks run. It waits a little first:
+     * the rules accept only one startedAt, and a joiner still on its way would otherwise have
+     * its own write turned down.
+     */
+    private val startIfStalled = Runnable {
+        if (attached.isEmpty() || startedAt != null || status == OnlineProtocol.STATUS_FINISHED) return@Runnable
+        Log.i(TAG, "room $code: no start time ${START_GRACE_MS / 1000} s after both seats were taken; writing it")
+        game.child("meta").updateChildren(
+            mapOf("status" to OnlineProtocol.STATUS_PLAYING, "startedAt" to ServerValue.TIMESTAMP)
+        ).addOnFailureListener { e -> Log.w(TAG, "start of room $code not written", e) }
+    }
 
     private fun listen(ref: DatabaseReference, onData: (DataSnapshot) -> Unit) {
         val l = object : ValueEventListener {
@@ -104,17 +124,20 @@ class OnlineSession private constructor(
                 return@listen
             }
             status = snap.child("status").value as? String
-            listener?.onStartedAt((snap.child("startedAt").value as? Number)?.toLong())
+            startedAt = (snap.child("startedAt").value as? Number)?.toLong()
+            listener?.onStartedAt(startedAt)
         }
         listen(opponentSeat) { snap ->
             val joined = snap.child("uid").value is String
             if (joined && !opponentJoined) {
                 opponentJoined = true
                 // The joiner starts the game; the host says so too in case the joiner was cut
-                // off in between (the web host does the same).
+                // off in between (the web host does the same), so its first move is taken. The
+                // start time follows if it is still missing a moment later (startIfStalled).
                 if (status == OnlineProtocol.STATUS_WAITING) {
                     game.child("meta/status").setValue(OnlineProtocol.STATUS_PLAYING)
                 }
+                if (startedAt == null) handler.postDelayed(startIfStalled, START_GRACE_MS)
                 listener?.onOpponentJoined()
             }
             listener?.onOpponentConnected(if (joined) snap.child("connected").value == true else null)
@@ -127,18 +150,21 @@ class OnlineSession private constructor(
 
     /** Detaches every listener; the room and the seat stay as they are. */
     fun stop() {
+        handler.removeCallbacks(startIfStalled)
         for ((ref, l) in attached) ref.removeEventListener(l)
         attached.clear()
     }
 
     /**
-     * Writes move [index] with the server's time on it. The database turns down a move that
-     * is not this player's to make; the move listener then shows the list without it.
+     * Writes move [index] with the server's time on it; [onSuccess] runs once the database has
+     * it. The database turns down a move that is not this player's to make; the move listener
+     * then shows the list without it, and [onFailure] runs.
      */
-    fun sendMove(index: Int, from: Position, to: Position, onFailure: () -> Unit) {
+    fun sendMove(index: Int, from: Position, to: Position, onSuccess: () -> Unit = {}, onFailure: () -> Unit) {
         val data = OnlineProtocol.encodeMove(from, to)
         data["t"] = ServerValue.TIMESTAMP
         game.child("moves").child(index.toString()).setValue(data)
+            .addOnSuccessListener { onSuccess() }
             .addOnFailureListener { e ->
                 Log.w(TAG, "move $index refused", e)
                 onFailure()
@@ -190,6 +216,8 @@ class OnlineSession private constructor(
         private const val TAG = "OnlineSession"
         private const val ROOMS = "games"
         private const val NETWORK_TIMEOUT_MS = 20_000L
+        /** How long the joiner has to write the start of the game before the other player does. */
+        private const val START_GRACE_MS = 8_000L
 
         private var screensInSight = 0
         private var used = false
@@ -284,9 +312,18 @@ class OnlineSession private constructor(
                     if (!isPermissionDenied(e)) throw e
                     return@network findOwnSeat(code, uid) ?: throw OnlineException(Reason.FULL, e)
                 }
-                rooms().child(code).child("meta").updateChildren(
-                    mapOf("status" to OnlineProtocol.STATUS_PLAYING, "startedAt" to ServerValue.TIMESTAMP)
-                ).await()
+                try {
+                    rooms().child(code).child("meta").updateChildren(
+                        mapOf("status" to OnlineProtocol.STATUS_PLAYING, "startedAt" to ServerValue.TIMESTAMP)
+                    ).await()
+                } catch (e: Exception) {
+                    // Refused when the host has started the game already, having waited for this
+                    // write and given up on it (OnlineSession.startIfStalled): the seat is ours
+                    // and the game on, which is all this write was for.
+                    if (!isPermissionDenied(e)) throw e
+                    val now = rooms().child(code).child("meta").get().await()
+                    if (now.child("status").value != OnlineProtocol.STATUS_PLAYING || now.child("startedAt").value !is Number) throw e
+                }
                 OnlineSession(code, seat, uid)
             }
         }

@@ -485,11 +485,14 @@ class MainActivity : AppCompatActivity() {
             }
             if (gameController.makePlayerMove(move)) {
                 boardView.clearSelection()
-                // Sent before the result a mating move announces (that is posted, see
-                // showOnlineGameOver): the database takes no move once a result is in.
-                session?.sendMove(gameController.getMoveHistory().size - 1, move.from, move.to) {
-                    runOnUiThread { toast(R.string.online_move_failed) }
-                }
+                // A move that ends the game holds its result back until the database has taken
+                // the move (see showOnlineGameOver): the result must not stand without it.
+                val index = gameController.getMoveHistory().size - 1
+                if (session != null) session.sendMove(
+                    index, move.from, move.to,
+                    onSuccess = { runOnUiThread { sendPendingOnlineResult(session, index) } },
+                    onFailure = { runOnUiThread { toast(R.string.online_move_failed) } }
+                )
             } else {
                 toast(R.string.illegal_move)
             }
@@ -541,7 +544,7 @@ class MainActivity : AppCompatActivity() {
         onlineSession?.let { return onlineStatusText(it) }
         return when {
             board.isCheckmate() -> getString(R.string.wins, sideName(board.currentPlayer.opposite()))
-            board.isStalemate() -> getString(R.string.draw_short)
+            board.isStalemate() -> getString(R.string.stalemate_win_short, sideName(board.currentPlayer.opposite()))
             board.isInCheck(board.currentPlayer) -> getString(R.string.in_check, side)
             gameController.isEndgameMode() && !gameController.isGameOver() ->
                 getString(R.string.endgame_goal, gameController.getEndgame()?.mateIn ?: 0, gameController.endgameMovesLeft())
@@ -791,19 +794,22 @@ class MainActivity : AppCompatActivity() {
         }
         val playerColor = gameController.getAIColor().opposite()
         if (gameController.isEndgameMode()) {
-            showEndgameResult(solved = result is GameController.GameResult.Checkmate && result.winner == playerColor)
+            // Leaving the defender without a move (困毙) wins the study as surely as mate.
+            val won = (result is GameController.GameResult.Checkmate || result is GameController.GameResult.Stalemate) &&
+                result.winner == playerColor
+            showEndgameResult(solved = won)
             return
         }
         val vsAI = gameController.getGameMode() == GameMode.PLAYER_VS_AI && !gameController.isEndgameMode()
-        val playerScore = when (result) {
-            is GameController.GameResult.Checkmate -> if (result.winner == playerColor) 1.0 else 0.0
-            is GameController.GameResult.PerpetualCheck -> if (result.winner == playerColor) 1.0 else 0.0
-            GameController.GameResult.Stalemate, GameController.GameResult.RepetitionDraw -> 0.5
+        val playerScore = when (result.winner) {
+            null -> 0.5
+            playerColor -> 1.0
+            else -> 0.0
         }
         val headline = when (result) {
             is GameController.GameResult.Checkmate -> getString(R.string.wins, sideName(result.winner))
+            is GameController.GameResult.Stalemate -> getString(R.string.stalemate_win, sideName(result.winner))
             is GameController.GameResult.PerpetualCheck -> getString(R.string.perpetual_check_loss, sideName(result.winner))
-            GameController.GameResult.Stalemate -> getString(R.string.draw)
             GameController.GameResult.RepetitionDraw -> getString(R.string.repetition_draw)
         }
         val message = StringBuilder(headline)
@@ -1465,7 +1471,7 @@ class MainActivity : AppCompatActivity() {
         val onlineEnd = onlineResult
         val result = when {
             board.isCheckmate() -> getString(R.string.wins_short, sideName(board.currentPlayer.opposite()))
-            board.isStalemate() -> getString(R.string.draw_short)
+            board.isStalemate() -> getString(R.string.stalemate_win_short, sideName(board.currentPlayer.opposite()))
             onlineSession != null && onlineEnd != null ->
                 onlineEnd.winner?.let { getString(R.string.wins_short, sideName(it)) } ?: getString(R.string.draw_short)
             else -> getString(R.string.result_unfinished)
@@ -1505,7 +1511,16 @@ class MainActivity : AppCompatActivity() {
     private var onlineStartedAt: Long? = null
     /** Server time the clocks stopped, for a game that ended off the board (a resignation). */
     private var onlineEndedAt: Long? = null
+    /** The result this player was shown (its own board's, or the room's). */
     private var onlineResult: OnlineProtocol.WireResult? = null
+    /** The result as the room holds it, once written by either side. */
+    private var onlineRoomResult: OnlineProtocol.WireResult? = null
+    /**
+     * The result of a game this player's own move ended, with that move's index: written once
+     * the database has taken the move, and dropped if it turned the move down.
+     */
+    private var pendingOnlineResult: Pair<Int, OnlineProtocol.WireResult>? = null
+    private var onlineResultDialog: AlertDialog? = null
     /** The friend's connection; null until they have taken their seat. */
     private var opponentConnected: Boolean? = null
     /** Shown in the status line once this phone has been without a connection for a moment. */
@@ -1569,19 +1584,18 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun onResult(result: OnlineProtocol.WireResult) {
+            // An older version writes a stalemate without its winner; the moves say who it is.
+            val complete = OnlineProtocol.completeResult(result, onlineMoves.size)
+            onlineRoomResult = complete
             // A resignation's server time is where both players' clocks stop.
-            result.serverTime?.let {
+            complete.serverTime?.let {
                 onlineEndedAt = it
                 updateClocks()
             }
             if (onlineResult != null) return
             // Theirs arrived first (a resignation, or a result this board has not reached).
-            if (!gameController.isGameOver()) {
-                onlineEndedAt = result.serverTime ?: onlineSession?.serverNow()
-                gameController.endOnlineGame()
-                audioManager.playGameOverSound()
-            }
-            showOnlineResult(result)
+            if (!gameController.isGameOver()) audioManager.playGameOverSound()
+            endWithRoomResult(complete)
         }
 
         override fun onStartedAt(serverTime: Long?) {
@@ -1811,6 +1825,9 @@ class MainActivity : AppCompatActivity() {
         onlineStartedAt = null
         onlineEndedAt = null
         onlineResult = null
+        onlineRoomResult = null
+        pendingOnlineResult = null
+        onlineResultDialog = null
         opponentConnected = null
         onlineReconnecting = false
         OnlineStore.save(this, session.code, session.myColor)
@@ -1862,38 +1879,71 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Brings the board in line with the database's list: the friend's new moves are played on
-     * it one by one; if the two disagree (a move of ours the database turned down, or moves of
-     * ours this board never saw), the board is rebuilt from the list.
+     * Brings the board in line with the database's list (OnlineProtocol.syncAction): the
+     * friend's new moves are played on it one by one; if the two disagree (a move of ours the
+     * database turned down, or moves of ours this board never saw), the board is rebuilt from
+     * the list. That holds for a game this board thinks is over, too: when the move that ended
+     * it was turned down, the game is on again from the position the database has, unless the
+     * room holds a result of its own (the friend resigned first, say). Nothing is sent again.
      */
     private fun syncOnlineMoves(moves: List<OnlineProtocol.WireMove>) {
         val session = onlineSession ?: return
         onlineMoves = moves
-        if (gameController.isGameOver()) {
-            updateClocks()
-            return
-        }
         val history = gameController.getMoveHistory()
-        val inStep = history.size <= moves.size &&
-            history.indices.all { history[it].from == moves[it].from && history[it].to == moves[it].to }
-        if (inStep) {
-            var next = history.size
-            while (next < moves.size &&
-                OnlineProtocol.moverOf(next) == session.opponentColor &&
-                gameController.applyRemoteMove(moves[next].from, moves[next].to)
-            ) next++
-            if (next == moves.size) {
+        when (val action = OnlineProtocol.syncAction(history.map { it.from to it.to }, moves, gameController.isGameOver())) {
+            OnlineProtocol.SyncAction.InStep -> {
                 updateClocks()
                 return
             }
+            is OnlineProtocol.SyncAction.PlayOn -> {
+                var next = action.from
+                while (next < moves.size &&
+                    OnlineProtocol.moverOf(next) == session.opponentColor &&
+                    gameController.applyRemoteMove(moves[next].from, moves[next].to)
+                ) next++
+                if (next == moves.size) {
+                    updateClocks()
+                    return
+                }
+            }
+            OnlineProtocol.SyncAction.Rebuild -> {}
         }
+        // Whatever this board had announced was for moves the database does not hold; a review
+        // of them is closed too.
+        pendingOnlineResult = null
+        onlineResult = null
+        onlineEndedAt = null
+        onlineResultDialog?.dismiss()
+        onlineResultDialog = null
+        if (gameController.isInReplayMode()) exitReplay()
+        stopReview()
         val played = gameController.startOnlineGame(session.myColor, moves.map { it.from to it.to })
         if (played < moves.size) android.util.Log.w("MainActivity", "online move $played of room ${session.code} is not legal here")
         boardView.clearSelection()
         boardView.highlightMove(gameController.getMoveHistory().lastOrNull())
         if (history.size > moves.size) toast(R.string.online_move_failed)
-        gameController.settleOnlineGame()
+        if (!gameController.settleOnlineGame()) onlineRoomResult?.let { endWithRoomResult(it) }
         updateGameModeDisplay()
+    }
+
+    /** Ends the game with the result the room holds, where this board has not reached it. */
+    private fun endWithRoomResult(result: OnlineProtocol.WireResult) {
+        val session = onlineSession ?: return
+        if (!gameController.isGameOver()) {
+            onlineEndedAt = result.serverTime ?: session.serverNow()
+            gameController.endOnlineGame()
+        }
+        // This player's own resignation is noted as it was when they resigned, without a dialog.
+        val ownResignation = result.type == OnlineProtocol.ResultType.RESIGN && result.winner == session.opponentColor
+        showOnlineResult(result, dialog = !ownResignation)
+    }
+
+    /** Writes the result held back for move [index] now that the database has the move. */
+    private fun sendPendingOnlineResult(session: OnlineSession, index: Int) {
+        val (forMove, result) = pendingOnlineResult ?: return
+        if (onlineSession !== session || forMove != index) return
+        pendingOnlineResult = null
+        session.sendResult(result)
     }
 
     private fun onlineStatusText(session: OnlineSession): String {
@@ -1998,6 +2048,10 @@ class MainActivity : AppCompatActivity() {
         }
         onlineMoves = emptyList()
         onlineResult = null
+        onlineRoomResult = null
+        pendingOnlineResult = null
+        onlineResultDialog?.dismiss()
+        onlineResultDialog = null
         if (gameController.isInReplayMode()) exitReplay()
         stopReview()
         gameController.onlineClock = null
@@ -2009,16 +2063,24 @@ class MainActivity : AppCompatActivity() {
     /** This board reached the end (mate, stalemate, a repetition): tell the room, then the player. */
     private fun showOnlineGameOver(result: GameController.GameResult) {
         val session = onlineSession ?: return
-        val wire = when (result) {
-            is GameController.GameResult.Checkmate -> OnlineProtocol.WireResult(OnlineProtocol.ResultType.CHECKMATE, result.winner)
-            is GameController.GameResult.PerpetualCheck -> OnlineProtocol.WireResult(OnlineProtocol.ResultType.PERPETUAL_CHECK, result.winner)
-            GameController.GameResult.Stalemate -> OnlineProtocol.WireResult(OnlineProtocol.ResultType.STALEMATE, null)
-            GameController.GameResult.RepetitionDraw -> OnlineProtocol.WireResult(OnlineProtocol.ResultType.REPETITION, null)
+        val type = when (result) {
+            is GameController.GameResult.Checkmate -> OnlineProtocol.ResultType.CHECKMATE
+            is GameController.GameResult.Stalemate -> OnlineProtocol.ResultType.STALEMATE
+            is GameController.GameResult.PerpetualCheck -> OnlineProtocol.ResultType.PERPETUAL_CHECK
+            GameController.GameResult.RepetitionDraw -> OnlineProtocol.ResultType.REPETITION
         }
+        val wire = OnlineProtocol.WireResult(type, result.winner)
         // The clocks stop on the last move.
         onlineEndedAt = null
-        // Posted: when this player's move ended the game, the move itself is sent first.
-        boardView.post { session.sendResult(wire) }
+        val moves = gameController.getMoveHistory()
+        if (moves.size > onlineMoves.size && OnlineProtocol.moverOf(moves.size - 1) == session.myColor) {
+            // This player's own move ended it and is about to be sent: the result follows once
+            // the database has taken the move, and never if it turns the move down.
+            pendingOnlineResult = (moves.size - 1) to wire
+        } else {
+            // The friend's move ended it (or the moves as the database has them): it holds them.
+            boardView.post { session.sendResult(wire) }
+        }
         showOnlineResult(wire)
     }
 
@@ -2053,7 +2115,7 @@ class MainActivity : AppCompatActivity() {
         if (gameController.getMoveHistory().isNotEmpty()) {
             builder.setNegativeButton(R.string.review_game) { _, _ -> startReview() }
         }
-        builder.show()
+        onlineResultDialog = builder.show()
     }
 
     private fun toast(resId: Int) {

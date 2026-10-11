@@ -121,10 +121,18 @@ class GameController(
     )
 
     sealed class GameResult {
-        data class Checkmate(val winner: PieceColor) : GameResult()
-        object Stalemate : GameResult()
-        data class PerpetualCheck(val winner: PieceColor) : GameResult()
-        object RepetitionDraw : GameResult()
+        /** The side that won; null for a draw. */
+        abstract val winner: PieceColor?
+        data class Checkmate(override val winner: PieceColor) : GameResult()
+        /**
+         * 困毙: the side to move is not in check but has no legal move. In xiangqi that loses,
+         * just as being mated does; it is no draw.
+         */
+        data class Stalemate(override val winner: PieceColor) : GameResult()
+        data class PerpetualCheck(override val winner: PieceColor) : GameResult()
+        object RepetitionDraw : GameResult() {
+            override val winner: PieceColor? get() = null
+        }
     }
 
     fun setGameMode(mode: GameMode, aiColor: PieceColor = PieceColor.BLACK) {
@@ -532,16 +540,7 @@ class GameController(
     fun isGameOver(): Boolean = gameOver
 
     private fun checkGameOver(): Boolean {
-        // Repetition detection: same position 3 times. If the side to move is in check there, the
-        // opponent has been checking perpetually and loses.
-        val repeated = positionHashes.count { it == positionHashes.last() } >= 3
-        val result = when {
-            board.isCheckmate() -> GameResult.Checkmate(board.currentPlayer.opposite())
-            board.isStalemate() -> GameResult.Stalemate
-            repeated && board.isInCheck(board.currentPlayer) -> GameResult.PerpetualCheck(board.currentPlayer)
-            repeated -> GameResult.RepetitionDraw
-            else -> null
-        }
+        val result = resultOf(board, positionHashes)
         // Settled before the result is announced: the game-over dialog asks whether the game is
         // over, and the clocks stop on the last move.
         gameOver = result != null
@@ -937,6 +936,28 @@ class GameController(
         /** Search depth for the defending side of an endgame study. */
         private const val ENDGAME_DEFENCE_DEPTH = 12
 
+        /**
+         * How the game stands on [board], reached through the positions [positionHashes] (the
+         * last of them [board]'s): over with a result, or null while it goes on. A side with no
+         * legal move has lost, in check (mate) or not (困毙). The same position a third time is
+         * a draw, unless the side to move is in check there: then the other side has been
+         * checking perpetually and loses.
+         */
+        fun resultOf(board: Board, positionHashes: List<Long>): GameResult? {
+            val toMove = board.currentPlayer
+            val inCheck = board.isInCheck(toMove)
+            if (board.getAllLegalMoves().isEmpty()) {
+                return if (inCheck) GameResult.Checkmate(toMove.opposite()) else GameResult.Stalemate(toMove.opposite())
+            }
+            val last = positionHashes.lastOrNull() ?: return null
+            val repeated = positionHashes.count { it == last } >= 3
+            return when {
+                repeated && inCheck -> GameResult.PerpetualCheck(toMove)
+                repeated -> GameResult.RepetitionDraw
+                else -> null
+            }
+        }
+
         /** Difficulty stored with the saved game, so resuming rebuilds the same opponent. */
         fun savedDifficulty(context: Context): AIDifficulty? {
             val prefs = context.getSharedPreferences("chess_save", Context.MODE_PRIVATE)
@@ -997,7 +1018,8 @@ class GameController(
                 val index = (moveHistory.size downTo 0).firstOrNull { it !in notes } ?: break
                 val generation = gameGeneration
                 val position = positionAfter(index)
-                val result = if (position.isCheckmate()) PikafishEngine.Score(cp = null, mate = 0) to null
+                // No legal move, mate or 困毙: lost, with nothing to search.
+                val result = if (position.getAllLegalMoves().isEmpty()) PikafishEngine.Score(cp = null, mate = 0) to null
                 else engineMutex.withLock {
                     val engine = ensurePikafish() ?: return@withLock null
                     backgroundSearching = true
@@ -1055,7 +1077,8 @@ class GameController(
      * the engine is unavailable.
      */
     private suspend fun searchPosition(position: Board, depth: Int = 0, moveTimeMs: Long = 0): Pair<PikafishEngine.Score?, Move?>? {
-        if (position.isCheckmate()) return PikafishEngine.Score(cp = null, mate = 0) to null
+        // The side to move has no legal move (mate or 困毙) and has lost.
+        if (position.getAllLegalMoves().isEmpty()) return PikafishEngine.Score(cp = null, mate = 0) to null
         return engineMutex.withLock {
             val engine = ensurePikafish() ?: return@withLock null
             engine.analyse(position, depth, moveTimeMs)
@@ -1139,7 +1162,7 @@ class GameController(
 
             val evals = scores.mapIndexed { i, sc ->
                 if (sc?.mate == 0) {
-                    // The side to move is mated: a decided game for the other side.
+                    // The side to move is mated, or has no move at all: a decided game for the other side.
                     Evaluation(cpRed = null, mateRed = if (positions[i].currentPlayer == PieceColor.RED) -1 else 1)
                 } else toRedPerspective(sc, positions[i].currentPlayer)
             }

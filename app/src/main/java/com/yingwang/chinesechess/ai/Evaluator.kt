@@ -108,10 +108,10 @@ object Evaluator {
      * Positive = RED advantage, negative = BLACK advantage.
      */
     fun evaluate(board: Board): Int {
-        if (board.isCheckmate()) {
+        // No legal move loses, in check (mate) or not (困毙).
+        if (board.getAllLegalMoves().isEmpty()) {
             return if (board.currentPlayer == PieceColor.RED) -90000 else 90000
         }
-        if (board.isStalemate()) return 0
 
         // Cache piece lists once for the entire evaluation
         val allPieces = board.getAllPieces()

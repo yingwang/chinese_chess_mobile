@@ -45,10 +45,11 @@
     <string name="in_check">%1$s将军！</string>
     <string name="wins">%1$s获胜！</string>
     <string name="wins_short">%1$s获胜</string>
-    <string name="draw">和棋！</string>
     <string name="draw_short">和棋</string>
     <string name="ai_thinking">AI 思考中</string>
     <string name="perpetual_check_loss">长将判负，%1$s获胜！</string>
+    <string name="stalemate_win">困毙，无子可走，%1$s获胜！</string>
+    <string name="stalemate_win_short">困毙，%1$s获胜</string>
     <string name="repetition_draw">三次重复局面，和棋！</string>
     <string name="rating_summary">\n\n积分: %1$s (%2$s)\n等级: %3$s</string>
     <string name="game_over">游戏结束</string>
