@@ -48,6 +48,7 @@
     <string name="draw_short">和棋</string>
     <string name="ai_thinking">AI 思考中</string>
     <string name="perpetual_check_loss">长将判负，%1$s获胜！</string>
+    <string name="perpetual_chase_loss">长捉判负，%1$s获胜！</string>
     <string name="stalemate_win">困毙，无子可走，%1$s获胜！</string>
     <string name="stalemate_win_short">困毙，%1$s获胜</string>
     <string name="repetition_draw">三次重复局面，和棋！</string>
@@ -259,7 +260,9 @@
     <string name="online_reason_checkmate">将死</string>
     <string name="online_reason_stalemate">困毙，无子可走</string>
     <string name="online_reason_perpetual">长将判负</string>
+    <string name="online_reason_perpetual_chase">长捉判负</string>
     <string name="online_reason_repetition">三次重复局面</string>
+    <string name="online_reason_unknown">对局已结束</string>
     <string name="online_reason_you_resigned">你认输了</string>
     <string name="online_reason_they_resigned">朋友认输了</string>
     <string name="online_no_undo">联机对局不能悔棋</string>

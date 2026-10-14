@@ -810,6 +810,7 @@ class MainActivity : AppCompatActivity() {
             is GameController.GameResult.Checkmate -> getString(R.string.wins, sideName(result.winner))
             is GameController.GameResult.Stalemate -> getString(R.string.stalemate_win, sideName(result.winner))
             is GameController.GameResult.PerpetualCheck -> getString(R.string.perpetual_check_loss, sideName(result.winner))
+            is GameController.GameResult.PerpetualChase -> getString(R.string.perpetual_chase_loss, sideName(result.winner))
             GameController.GameResult.RepetitionDraw -> getString(R.string.repetition_draw)
         }
         val message = StringBuilder(headline)
@@ -2060,13 +2061,14 @@ class MainActivity : AppCompatActivity() {
         updateGameModeDisplay()
     }
 
-    /** This board reached the end (mate, stalemate, a repetition): tell the room, then the player. */
+    /** This board reached the end (mate, stalemate, a repeated position): tell the room, then the player. */
     private fun showOnlineGameOver(result: GameController.GameResult) {
         val session = onlineSession ?: return
         val type = when (result) {
             is GameController.GameResult.Checkmate -> OnlineProtocol.ResultType.CHECKMATE
             is GameController.GameResult.Stalemate -> OnlineProtocol.ResultType.STALEMATE
             is GameController.GameResult.PerpetualCheck -> OnlineProtocol.ResultType.PERPETUAL_CHECK
+            is GameController.GameResult.PerpetualChase -> OnlineProtocol.ResultType.PERPETUAL_CHASE
             GameController.GameResult.RepetitionDraw -> OnlineProtocol.ResultType.REPETITION
         }
         val wire = OnlineProtocol.WireResult(type, result.winner)
@@ -2099,9 +2101,12 @@ class MainActivity : AppCompatActivity() {
             OnlineProtocol.ResultType.CHECKMATE -> R.string.online_reason_checkmate
             OnlineProtocol.ResultType.STALEMATE -> R.string.online_reason_stalemate
             OnlineProtocol.ResultType.PERPETUAL_CHECK -> R.string.online_reason_perpetual
+            OnlineProtocol.ResultType.PERPETUAL_CHASE -> R.string.online_reason_perpetual_chase
             OnlineProtocol.ResultType.REPETITION -> R.string.online_reason_repetition
             OnlineProtocol.ResultType.RESIGN ->
                 if (result.winner == session.myColor) R.string.online_reason_they_resigned else R.string.online_reason_you_resigned
+            // Written by a newer version: ended, with nothing more this one can say about it.
+            OnlineProtocol.ResultType.UNKNOWN -> R.string.online_reason_unknown
         }
         if (!dialog) {
             Snackbar.make(boardView, getString(reason), Snackbar.LENGTH_LONG).show()

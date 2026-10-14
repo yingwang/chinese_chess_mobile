@@ -194,7 +194,10 @@ class OnlineProtocolTest {
         assertEquals(mapOf("type" to "perpetualCheck", "winner" to "black"),
             OnlineProtocol.encodeResult(WireResult(ResultType.PERPETUAL_CHECK, PieceColor.BLACK)))
         assertEquals(mapOf("type" to "repetition"), OnlineProtocol.encodeResult(WireResult(ResultType.REPETITION, null)))
+        assertEquals(mapOf("type" to "perpetualChase", "winner" to "red"),
+            OnlineProtocol.encodeResult(WireResult(ResultType.PERPETUAL_CHASE, PieceColor.RED)))
         for (type in ResultType.values()) for (winner in listOf(PieceColor.RED, PieceColor.BLACK, null)) {
+            if (type == ResultType.UNKNOWN) continue
             val result = WireResult(type, winner)
             assertEquals(result, OnlineProtocol.decodeResult(OnlineProtocol.encodeResult(result)))
         }
@@ -202,7 +205,11 @@ class OnlineProtocolTest {
         assertEquals(WireResult(ResultType.RESIGN, PieceColor.BLACK, 1_791_652_000_000L),
             OnlineProtocol.decodeResult(mapOf("type" to "resign", "winner" to "black", "t" to 1_791_652_000_000L)))
         assertEquals(WireResult(ResultType.RESIGN, PieceColor.BLACK), OnlineProtocol.decodeResult(mapOf("type" to "resign", "winner" to "black")))
-        assertNull(OnlineProtocol.decodeResult(mapOf("type" to "abandon")))
+        // A type from a newer version ends the game as a draw with no winner, whatever it says.
+        assertEquals(WireResult(ResultType.UNKNOWN, null), OnlineProtocol.decodeResult(mapOf("type" to "abandon", "winner" to "red")))
+        assertEquals(WireResult(ResultType.UNKNOWN, null, 5L), OnlineProtocol.decodeResult(mapOf("type" to "timeout", "t" to 5L)))
+        assertNull(OnlineProtocol.decodeResult(mapOf("type" to 7)))
+        assertNull(OnlineProtocol.decodeResult(mapOf("winner" to "red")))
         assertNull(OnlineProtocol.decodeResult(null))
     }
 

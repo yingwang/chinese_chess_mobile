@@ -1,0 +1,10 @@
+[
+ {
+  "language": "en-US",
+  "text": "Repeated positions are now judged by the rules of xiangqi instead of simply declared a draw. When a position comes up a third time, the app looks at every move of the repeated cycle: a side that gave check with every move loses by perpetual check, a side that chased a piece with every move loses by perpetual chase, and only a plain repetition is a draw. The AI will not repeat a position when that would lose it the game, and the web version judges the same way, so an online game ends with the same result on both sides."
+ },
+ {
+  "language": "zh-CN",
+  "text": "重复局面现在按象棋规则判定，不再一律判和。同一局面第三次出现时，会看这一循环里的每一步：每步都在将军的一方按长将判负，每步都在捉子的一方按长捉判负，只有单纯的重复才算和棋。AI 不会走会被判负的重复着法；网页版的判法完全一样，联机对局两边看到的结果一致。"
+ }
+]

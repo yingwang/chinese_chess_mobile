@@ -23,8 +23,9 @@ class GameResultTest {
         return board.copy().also { it.makeMoveInPlace(move) }
     }
 
+    /** The result on the last of [boards], none of which repeats (no moves are needed to judge it then). */
     private fun resultAfter(vararg boards: Board): GameResult? =
-        GameController.resultOf(boards.last(), boards.map { it.getPositionHash() })
+        GameController.resultOf(boards.last(), boards.map { it.getPositionHash() }, boards.first(), emptyList())
 
     /**
      * Black's general alone on d10, red's on e1 and a red pawn on b9. Red plays the pawn across
@@ -55,26 +56,41 @@ class GameResultTest {
         val mirrored = Fen.parse("4k4/9/9/9/9/9/9/9/2p6/3K5 w")
         assertTrue(mirrored.getAllLegalMoves().isEmpty())
         assertFalse(mirrored.isInCheck(PieceColor.RED))
-        assertEquals(GameResult.Stalemate(PieceColor.BLACK), GameController.resultOf(mirrored, listOf(mirrored.getPositionHash())))
+        assertEquals(GameResult.Stalemate(PieceColor.BLACK), GameController.resultOf(mirrored, listOf(mirrored.getPositionHash()), mirrored, emptyList()))
     }
 
     @Test
-    fun mateRepetitionAndPerpetualCheckAreAsBefore() {
+    fun mateIsAsBeforeAndARepetitionIsJudgedByItsMoves() {
         assertNull(resultAfter(beforeStalemate))
         assertNull(resultAfter(Board.createInitialBoard()))
         // Mate: the same corner, but a chariot comes to a10 and gives check along the back rank.
         val mate = Fen.parse("3k5/2P6/9/9/9/9/9/9/9/R3K4 w").let { play(it, Position(9, 0), Position(0, 0)) }
         assertEquals(GameResult.Checkmate(PieceColor.RED), resultAfter(mate))
         assertEquals(PieceColor.RED, GameController.GameResult.Checkmate(PieceColor.RED).winner)
-        // A third occurrence: a draw, or a loss for the side giving check every time.
-        val quiet = Board.createInitialBoard()
-        assertEquals(GameResult.RepetitionDraw, GameController.resultOf(quiet, List(3) { quiet.getPositionHash() }))
         assertNull(GameResult.RepetitionDraw.winner)
-        // Black in check from the chariot on the d-file, with e9 still free.
-        val checked = Fen.parse("9/3k5/9/9/9/9/9/9/9/3R1K3 b")
-        assertTrue(checked.isInCheck(PieceColor.BLACK))
-        assertFalse(checked.getAllLegalMoves().isEmpty())
-        assertEquals(GameResult.PerpetualCheck(PieceColor.BLACK), GameController.resultOf(checked, List(3) { checked.getPositionHash() }))
+        assertEquals(PieceColor.BLACK, GameResult.PerpetualChase(PieceColor.BLACK).winner)
+
+        // Red's chariot checks from a9 and a8 in turn while black's general steps up and down:
+        // the third occurrence of the start is red's perpetual check, whoever is in check there.
+        val start = Fen.parse("4k4/R8/9/9/9/9/9/9/9/5K3 w")
+        val squares = listOf(
+            Position(1, 0) to Position(0, 0), Position(0, 4) to Position(1, 4),
+            Position(0, 0) to Position(1, 0), Position(1, 4) to Position(0, 4)
+        )
+        val moves = mutableListOf<Move>()
+        val hashes = mutableListOf(start.getPositionHash())
+        var board = start
+        repeat(2) {
+            for ((from, to) in squares) {
+                val move = board.getAllLegalMoves().single { it.from == from && it.to == to }
+                moves.add(move)
+                board = board.copy().also { it.makeMoveInPlace(move) }
+                hashes.add(board.getPositionHash())
+                if (moves.size < 8) assertNull("not over after ${moves.size} moves", GameController.resultOf(board, hashes, start, moves))
+            }
+        }
+        assertFalse("red to move is not in check", board.isInCheck(PieceColor.RED))
+        assertEquals(GameResult.PerpetualCheck(PieceColor.BLACK), GameController.resultOf(board, hashes, start, moves))
     }
 
     @Test

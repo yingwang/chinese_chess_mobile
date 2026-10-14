@@ -50,6 +50,7 @@
     <string name="draw_short">Draw</string>
     <string name="ai_thinking">AI thinking</string>
     <string name="perpetual_check_loss">Perpetual check loses. %1$s wins!</string>
+    <string name="perpetual_chase_loss">Perpetual chase loses. %1$s wins!</string>
     <string name="stalemate_win">Stalemate: no legal move, and that loses. %1$s wins!</string>
     <string name="stalemate_win_short">Stalemate, %1$s wins</string>
     <string name="repetition_draw">Same position three times. Draw!</string>
@@ -259,7 +260,9 @@
     <string name="online_reason_checkmate">Checkmate</string>
     <string name="online_reason_stalemate">Stalemate: no legal move</string>
     <string name="online_reason_perpetual">Perpetual check loses</string>
+    <string name="online_reason_perpetual_chase">Perpetual chase loses</string>
     <string name="online_reason_repetition">Same position three times</string>
+    <string name="online_reason_unknown">The game has ended</string>
     <string name="online_reason_you_resigned">You resigned</string>
     <string name="online_reason_they_resigned">Your friend resigned</string>
     <string name="online_no_undo">No take-backs in an online game</string>

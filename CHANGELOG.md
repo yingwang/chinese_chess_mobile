@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.2] - 2026-10-14
+
+### Changed
+- A position that occurs a third time is judged by the rules of repetition instead of by whether the side to move happens to be in check at that moment. The moves of the cycle between the previous occurrence and this one are classified: a check gives check; a chase creates a new attack, by any piece but the general or a soldier, on an opponent piece that is not the general nor a soldier still on its own side of the river, which is either unprotected or worth more than the attacker (chariot above horse and cannon, which rank alike, above the rest); attacking a protected piece of equal or lower value offers an exchange and is no chase. A side that checked with every move loses by 长将; one that checked or chased with every move, some of each, loses the same way; one that chased with every move loses by 长捉, the same piece or different ones; check outranks chase, and when both sides did the same the game is a draw by repetition. The classifier is `Repetition.kt`; the shared cases in `app/src/test/resources/repetition-cases.json` are the same file the web version runs, so both judge alike
+- The AI never repeats a position a third time when the rules would give it the loss (it looks for another move, a fresh one first), still avoids a drawn repetition while it has a fresh move, and takes a repetition that the opponent's perpetual check or chase makes a win
+- Online, a perpetual chase is written as `perpetualChase` with its winner; the web version writes and reads the same. A result type this version does not know, from a newer one, is read as a draw with no winner so the game still ends. A phone on 2.5.1 ignores a `perpetualChase` written by the other side and shows its own verdict for the repeated position instead (a draw, or a perpetual check if its general was in check at the moment of repetition), so during the changeover the two sides can disagree; both sides on 2.5.2 or the current web page agree
+
 ## [2.5.1] - 2026-10-11
 
 ### Changed

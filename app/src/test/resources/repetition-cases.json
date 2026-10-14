@@ -1,0 +1,304 @@
+{
+  "notation": "Squares are written as in UCI xiangqi (Pikafish): file a..i is column 0..8 from the left with red at the bottom, rank 0..9 is row 9..0 (rank 0 is red's back rank, rank 9 black's). A move is from-square then to-square. The FEN is the usual xiangqi FEN with w (red) or b (black) to move. Each move list ends exactly at the third occurrence of a position, and the expected result is what both the web page (js/repetition.js) and the app (Repetition.kt) must give: type perpetualCheck or perpetualChase with the winner, or repetition with no winner. conduct is each side's classification over the final cycle.",
+  "cases": [
+    {
+      "id": "red-perpetual-check",
+      "description": "Red's chariot checks along the back rank and the rank in front of it in turn; black's general can only step up and down. Every red move is a check, no black move is anything: red loses.",
+      "fen": "4k4/R8/9/9/9/9/9/9/9/5K3 w",
+      "moves": [
+        "a8a9",
+        "e9e8",
+        "a9a8",
+        "e8e9",
+        "a8a9",
+        "e9e8",
+        "a9a8",
+        "e8e9"
+      ],
+      "conduct": {
+        "red": "check",
+        "black": "none"
+      },
+      "expect": {
+        "type": "perpetualCheck",
+        "winner": "black"
+      }
+    },
+    {
+      "id": "black-perpetual-check",
+      "description": "The same with the colours the other way round: black's chariot checks red's general from a0 and a1 in turn. Black loses.",
+      "fen": "3k5/9/9/9/9/9/9/9/r8/4K4 b",
+      "moves": [
+        "a1a0",
+        "e0e1",
+        "a0a1",
+        "e1e0",
+        "a1a0",
+        "e0e1",
+        "a0a1",
+        "e1e0"
+      ],
+      "conduct": {
+        "red": "none",
+        "black": "check"
+      },
+      "expect": {
+        "type": "perpetualCheck",
+        "winner": "red"
+      }
+    },
+    {
+      "id": "horse-chases-unprotected-chariot",
+      "description": "Red's horse attacks black's unprotected chariot from d3 and e5 in turn; the chariot runs between f7 and f4, never attacking anything. Every red move is a chase: red loses.",
+      "fen": "4k4/9/5r3/9/9/9/3N5/9/9/3K5 w",
+      "moves": [
+        "d3e5",
+        "f7f4",
+        "e5d3",
+        "f4f7",
+        "d3e5",
+        "f7f4",
+        "e5d3",
+        "f4f7"
+      ],
+      "conduct": {
+        "red": "chase",
+        "black": "none"
+      },
+      "expect": {
+        "type": "perpetualChase",
+        "winner": "black"
+      }
+    },
+    {
+      "id": "black-horse-chases-unprotected-chariot",
+      "description": "The mirror image: black's horse chases red's unprotected chariot. Black loses.",
+      "fen": "3k5/9/9/3n5/9/9/9/5R3/9/4K4 b",
+      "moves": [
+        "d6e4",
+        "f2f5",
+        "e4d6",
+        "f5f2",
+        "d6e4",
+        "f2f5",
+        "e4d6",
+        "f5f2"
+      ],
+      "conduct": {
+        "red": "none",
+        "black": "chase"
+      },
+      "expect": {
+        "type": "perpetualChase",
+        "winner": "red"
+      }
+    },
+    {
+      "id": "cannon-chases-protected-chariot",
+      "description": "Red's cannon attacks black's chariot over a pawn, from d1 at d7 and from f1 at f7 in turn. The chariot is protected by the advisor on e8 (the elephant on e2 keeps the generals from facing when it recaptures), but a cannon is worth less than a chariot, so each attack is still a chase. The chariot's own moves only attack pawns that have not crossed the river, which is nothing. Red loses.",
+      "fen": "4k4/4a4/5r3/9/9/3P1P3/9/4B4/3C5/4K4 w",
+      "moves": [
+        "d1f1",
+        "f7d7",
+        "f1d1",
+        "d7f7",
+        "d1f1",
+        "f7d7",
+        "f1d1",
+        "d7f7"
+      ],
+      "conduct": {
+        "red": "chase",
+        "black": "none"
+      },
+      "expect": {
+        "type": "perpetualChase",
+        "winner": "black"
+      }
+    },
+    {
+      "id": "chariot-attacks-protected-chariot",
+      "description": "The same shape with a red chariot instead of the cannon: a chariot attacking a protected chariot offers an exchange, which is no chase. Nobody checks or chases, so the third occurrence is a plain draw.",
+      "fen": "4k4/4a4/5r3/9/9/9/9/4B4/3R5/4K4 w",
+      "moves": [
+        "d1f1",
+        "f7d7",
+        "f1d1",
+        "d7f7",
+        "d1f1",
+        "f7d7",
+        "f1d1",
+        "d7f7"
+      ],
+      "conduct": {
+        "red": "none",
+        "black": "none"
+      },
+      "expect": {
+        "type": "repetition",
+        "winner": null
+      }
+    },
+    {
+      "id": "one-check-one-chase",
+      "description": "Red's chariot checks the general from a9, then drops back to a5 where it attacks the unprotected horse on i5: a check and a chase in turn, with black's general merely stepping between e9 and e8. Check-and-chase counts like perpetual check: red loses.",
+      "fen": "4k4/9/9/9/R7n/9/9/9/9/3K5 w",
+      "moves": [
+        "a5a9",
+        "e9e8",
+        "a9a5",
+        "e8e9",
+        "a5a9",
+        "e9e8",
+        "a9a5",
+        "e8e9"
+      ],
+      "conduct": {
+        "red": "checkAndChase",
+        "black": "none"
+      },
+      "expect": {
+        "type": "perpetualCheck",
+        "winner": "black"
+      }
+    },
+    {
+      "id": "chase-against-chase",
+      "description": "Each chariot attacks an unprotected enemy horse with every move: red's from a3 and a5 at the horses on e3 and e5, black's from i6 and i4 at the horses on e6 and e4. Both sides chase perpetually, so it is a draw.",
+      "fen": "5k3/9/9/4N3r/4n4/4N4/R3n4/9/9/3K5 w",
+      "moves": [
+        "a3a5",
+        "i6i4",
+        "a5a3",
+        "i4i6",
+        "a3a5",
+        "i6i4",
+        "a5a3",
+        "i4i6"
+      ],
+      "conduct": {
+        "red": "chase",
+        "black": "chase"
+      },
+      "expect": {
+        "type": "repetition",
+        "winner": null
+      }
+    },
+    {
+      "id": "plain-shuffling",
+      "description": "Both sides move an advisor back and forth, attacking nothing. Draw by repetition.",
+      "fen": "3a1k3/9/9/9/9/9/9/9/9/3AK4 w",
+      "moves": [
+        "d0e1",
+        "d9e8",
+        "e1d0",
+        "e8d9",
+        "d0e1",
+        "d9e8",
+        "e1d0",
+        "e8d9"
+      ],
+      "conduct": {
+        "red": "none",
+        "black": "none"
+      },
+      "expect": {
+        "type": "repetition",
+        "winner": null
+      }
+    },
+    {
+      "id": "general-is-no-chaser",
+      "description": "Red's general steps between e0 and d0, each time next to an unprotected black cannon it could take. A general never chases; black shuffles an advisor. Draw by repetition.",
+      "fen": "3a1k3/9/9/9/9/9/9/9/3cc4/4K4 w",
+      "moves": [
+        "e0d0",
+        "d9e8",
+        "d0e0",
+        "e8d9",
+        "e0d0",
+        "d9e8",
+        "d0e0",
+        "e8d9"
+      ],
+      "conduct": {
+        "red": "none",
+        "black": "none"
+      },
+      "expect": {
+        "type": "repetition",
+        "winner": null
+      }
+    },
+    {
+      "id": "attacking-uncrossed-soldiers",
+      "description": "Red's horse attacks a black soldier on its own side of the river with every move, on c5 from d3 and on g6 from e5. Such a soldier is no target for a chase; black shuffles an advisor. Draw by repetition.",
+      "fen": "3a1k3/9/9/6p2/2p6/9/3N5/9/9/3K5 w",
+      "moves": [
+        "d3e5",
+        "d9e8",
+        "e5d3",
+        "e8d9",
+        "d3e5",
+        "d9e8",
+        "e5d3",
+        "e8d9"
+      ],
+      "conduct": {
+        "red": "none",
+        "black": "none"
+      },
+      "expect": {
+        "type": "repetition",
+        "winner": null
+      }
+    },
+    {
+      "id": "chasing-crossed-soldiers-in-turn",
+      "description": "The same horse, but the two soldiers have crossed the river (c4 and f4) and neither protects the other. Attacking a different one with every move is still a perpetual chase: red loses.",
+      "fen": "3a1k3/9/9/9/9/2p2p3/3N5/9/9/3K5 w",
+      "moves": [
+        "d3e5",
+        "d9e8",
+        "e5d3",
+        "e8d9",
+        "d3e5",
+        "d9e8",
+        "e5d3",
+        "e8d9"
+      ],
+      "conduct": {
+        "red": "chase",
+        "black": "none"
+      },
+      "expect": {
+        "type": "perpetualChase",
+        "winner": "black"
+      }
+    },
+    {
+      "id": "check-and-chase-against-chase",
+      "description": "Black's chariot checks red's general along the second rank from a2, and red's chariot drops from e6 to e2 to block, attacking the unprotected black chariot as it does (a chase). The black chariot goes up to a6, attacking red's unprotected horse on f6 (a chase); the red chariot returns to e6, attacking it there (a chase); the black chariot returns to a2 with check. Red only chases; black checks and chases, which is the more serious: black loses.",
+      "fen": "9/5k3/9/4RN3/9/9/9/r4K3/9/9 w",
+      "moves": [
+        "e6e2",
+        "a2a6",
+        "e2e6",
+        "a6a2",
+        "e6e2",
+        "a2a6",
+        "e2e6",
+        "a6a2"
+      ],
+      "conduct": {
+        "red": "chase",
+        "black": "checkAndChase"
+      },
+      "expect": {
+        "type": "perpetualCheck",
+        "winner": "red"
+      }
+    }
+  ]
+}

@@ -15,11 +15,16 @@ import java.util.Random
  *     meta     { createdAt, status: waiting|playing|finished, gameCode, hostColor, startedAt }
  *     players  { red: { uid, connected }, black: { uid, connected } }
  *     moves    { 0: { fromRow, fromCol, toRow, toCol, t }, 1: {...}, ... }
- *     result   { type: checkmate|stalemate|perpetualCheck|repetition|resign, winner: red|black, t }
+ *     result   { type: checkmate|stalemate|perpetualCheck|perpetualChase|repetition|resign,
+ *                winner: red|black, t }
  *
  * A stalemate (困毙, no legal move without being in check) loses for the side that cannot move,
  * and carries the winner like a mate. Versions before 2.5.1 (and the web page before then) wrote
  * it without one, as a draw; [completeResult] fills that winner in when such a result is read.
+ * A repeated position is judged by the rules of repetition from 2.5.2 (and the web page of the
+ * same day): perpetualCheck and perpetualChase carry the winner, repetition is a draw. A type
+ * this version does not know, from a newer one, is read as [ResultType.UNKNOWN], a draw with no
+ * winner, so the game still ends rather than hang; the web page does the same.
  *
  * Squares are the same on both sides and need no translation: row 0 is black's back rank and
  * row 9 red's, column 0 is the left edge with red at the bottom ([Position], and Position in the
@@ -110,11 +115,18 @@ object OnlineProtocol {
         CHECKMATE("checkmate"),
         STALEMATE("stalemate"),
         PERPETUAL_CHECK("perpetualCheck"),
+        PERPETUAL_CHASE("perpetualChase"),
         REPETITION("repetition"),
-        RESIGN("resign");
+        RESIGN("resign"),
+        /** A type written by a newer version; never written by this one. */
+        UNKNOWN("unknown");
 
         companion object {
-            fun of(key: Any?): ResultType? = values().firstOrNull { it.key == key }
+            /** The type for [key]; [UNKNOWN] for a string this version does not know, null for anything else. */
+            fun of(key: Any?): ResultType? = when (key) {
+                is String -> values().firstOrNull { it != UNKNOWN && it.key == key } ?: UNKNOWN
+                else -> null
+            }
         }
     }
 
@@ -134,7 +146,9 @@ object OnlineProtocol {
     fun decodeResult(value: Any?): WireResult? {
         val map = value as? Map<*, *> ?: return null
         val type = ResultType.of(map["type"]) ?: return null
-        return WireResult(type, parseColor(map["winner"]), (map["t"] as? Number)?.toLong())
+        // A type this version does not know is a draw with no winner (see the class comment).
+        val winner = if (type == ResultType.UNKNOWN) null else parseColor(map["winner"])
+        return WireResult(type, winner, (map["t"] as? Number)?.toLong())
     }
 
     /**

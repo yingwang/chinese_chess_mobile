@@ -80,9 +80,10 @@ Pikafish 没有限制棋力的选项，所以新手和入门两档让它给出�
 
 ### Rules Enforcement / 规则检测
 
-- **Perpetual check detection / 长将检测** — Perpetual check (same position 3 times with check) results in loss for the checking side / 同一局面出现3次且处于将军状态，长将方判负
-- **Threefold repetition draw / 三次重复和棋** — Same position 3 times without check is a draw / 同一局面出现3次（无将军）判和棋
-- **AI avoidance / AI 规避** — AI proactively avoids moves that would cause repetition penalties / AI 主动规避会导致判负的重复走法
+- **Perpetual check / 长将判负** — When a position occurs a third time, the moves of the repeated cycle are judged: a side that gave check with every move loses / 同一局面第三次出现时，按这一循环里的每一步判定：每步都在将军的一方判负
+- **Perpetual chase / 长捉判负** — A side that chased with every move (newly attacking an unprotected piece, or a more valuable one with a cheaper piece; never a general or an uncrossed soldier, never by the general or a soldier) loses; check outranks chase, and both sides doing the same is a draw. The classifier is `Repetition.kt`, shared case by case with the web version through `app/src/test/resources/repetition-cases.json` / 每步都在捉子（新攻击无根子，或以低值子攻击高值子；不算将与未过河兵，帅与兵不算捉）的一方判负；将重于捉，双方同样则和。判定代码在 `Repetition.kt`，与网页版共用 `app/src/test/resources/repetition-cases.json` 里的用例
+- **Threefold repetition draw / 三次重复和棋** — Any other third occurrence is a draw / 其余的三次重复判和棋
+- **AI avoidance / AI 规避** — The AI never repeats a position a third time when that would lose it the game, avoids a drawn repetition while it has a fresh move, and takes a repetition that wins / AI 不走会被判负的第三次重复，有新着法时也不走和棋的重复，对方长将长捉送来的胜利则照收
 
 ### Additional Features / 其他功能
 

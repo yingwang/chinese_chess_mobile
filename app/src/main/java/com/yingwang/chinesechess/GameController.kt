@@ -129,7 +129,10 @@ class GameController(
          * just as being mated does; it is no draw.
          */
         data class Stalemate(override val winner: PieceColor) : GameResult()
+        /** 长将: the loser checked with every move of the repeated cycle (see [Repetition]). */
         data class PerpetualCheck(override val winner: PieceColor) : GameResult()
+        /** 长捉: the loser chased with every move of the repeated cycle (see [Repetition]). */
+        data class PerpetualChase(override val winner: PieceColor) : GameResult()
         object RepetitionDraw : GameResult() {
             override val winner: PieceColor? get() = null
         }
@@ -378,18 +381,30 @@ class GameController(
                 val sideToMove = board.currentPlayer
                 var (move, score) = searchBestMove(null)
 
+                // A move that repeats a position a third time ends the game, judged by the
+                // rules of repetition (Repetition): a loss for the side that checked or chased
+                // all along, otherwise a draw. A repetition that wins is taken whenever one is
+                // on offer.
+                val legal = board.getAllLegalMoves()
+                val winning = legal.firstOrNull { repetitionAfter(it)?.winner == sideToMove }
+                if (winning != null) {
+                    move = winning
+                    score = null
+                }
                 // Shuffling: the engine happily walks a piece back and forth when nothing is
                 // pressing, which reads as dithering. If the chosen move revisits a position
                 // or reverses its own last move, search again with those moves off the table
                 // and take the alternative when it costs little. A third occurrence of a
-                // position is avoided regardless of score.
-                if (move != null && (timesSeenAfter(move) >= 1 || looksLikeShuffling(move, sideToMove))) {
-                    val forced = timesSeenAfter(move) >= 2
-                    val fresh = board.getAllLegalMoves().filter {
-                        timesSeenAfter(it) == 0 && !looksLikeShuffling(it, sideToMove)
-                    }
-                    val (alternative, altScore) = searchBestMove(fresh)
-                    if (alternative != null && (forced || acceptableAlternative(score, altScore))) {
+                // position is avoided regardless of score: a drawn one while a fresh move
+                // exists, a losing one while any move that does not lose exists.
+                if (move != null && winning == null && (timesSeenAfter(move) >= 1 || looksLikeShuffling(move, sideToMove))) {
+                    val repeated = repetitionAfter(move)
+                    val loses = repeated != null && repeated.winner == sideToMove.opposite()
+                    val fresh = legal.filter { timesSeenAfter(it) == 0 && !looksLikeShuffling(it, sideToMove) }
+                    val candidates = if (fresh.isNotEmpty() || !loses) fresh
+                        else legal.filter { it != move && repetitionAfter(it)?.winner != sideToMove.opposite() }
+                    val (alternative, altScore) = searchBestMove(candidates)
+                    if (alternative != null && (repeated != null || acceptableAlternative(score, altScore))) {
                         move = alternative
                         score = altScore
                     }
@@ -514,6 +529,18 @@ class GameController(
         return positionHashes.count { it == hash }
     }
 
+    /**
+     * How the game would be judged if [move] were played now and repeated a position a third
+     * time (see [Repetition]); null if it repeats nothing a third time.
+     */
+    private fun repetitionAfter(move: Move): GameResult? {
+        val testBoard = board.copy()
+        testBoard.makeMoveInPlace(move)
+        val hash = testBoard.getPositionHash()
+        if (positionHashes.count { it == hash } < 2) return null
+        return Repetition.judge(initialBoard, moveHistory + move, positionHashes + hash)?.result
+    }
+
     /** True if [move] undoes [side]'s previous move or repeats the one before that. */
     private fun looksLikeShuffling(move: Move, side: PieceColor): Boolean {
         val own = moveHistory.filter { it.piece.color == side }
@@ -540,7 +567,7 @@ class GameController(
     fun isGameOver(): Boolean = gameOver
 
     private fun checkGameOver(): Boolean {
-        val result = resultOf(board, positionHashes)
+        val result = resultOf(board, positionHashes, initialBoard, moveHistory)
         // Settled before the result is announced: the game-over dialog asks whether the game is
         // over, and the clocks stop on the last move.
         gameOver = result != null
@@ -937,25 +964,19 @@ class GameController(
         private const val ENDGAME_DEFENCE_DEPTH = 12
 
         /**
-         * How the game stands on [board], reached through the positions [positionHashes] (the
-         * last of them [board]'s): over with a result, or null while it goes on. A side with no
-         * legal move has lost, in check (mate) or not (困毙). The same position a third time is
-         * a draw, unless the side to move is in check there: then the other side has been
-         * checking perpetually and loses.
+         * How the game stands on [board], reached from [start] by [moves] through the positions
+         * [positionHashes] (one per position, the last of them [board]'s): over with a result,
+         * or null while it goes on. A side with no legal move has lost, in check (mate) or not
+         * (困毙). The same position a third time is judged by the moves of the cycle that
+         * repeated it ([Repetition]): a loss for the side that checked or chased with every
+         * move (长将, 长捉), otherwise a draw.
          */
-        fun resultOf(board: Board, positionHashes: List<Long>): GameResult? {
+        fun resultOf(board: Board, positionHashes: List<Long>, start: Board, moves: List<Move>): GameResult? {
             val toMove = board.currentPlayer
-            val inCheck = board.isInCheck(toMove)
             if (board.getAllLegalMoves().isEmpty()) {
-                return if (inCheck) GameResult.Checkmate(toMove.opposite()) else GameResult.Stalemate(toMove.opposite())
+                return if (board.isInCheck(toMove)) GameResult.Checkmate(toMove.opposite()) else GameResult.Stalemate(toMove.opposite())
             }
-            val last = positionHashes.lastOrNull() ?: return null
-            val repeated = positionHashes.count { it == last } >= 3
-            return when {
-                repeated && inCheck -> GameResult.PerpetualCheck(toMove)
-                repeated -> GameResult.RepetitionDraw
-                else -> null
-            }
+            return Repetition.judge(start, moves, positionHashes)?.result
         }
 
         /** Difficulty stored with the saved game, so resuming rebuilds the same opponent. */
