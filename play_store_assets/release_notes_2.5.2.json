@@ -1,7 +1,7 @@
 [
  {
   "language": "en-US",
-  "text": "Repeated positions are now judged by the rules of xiangqi instead of simply declared a draw. When a position comes up a third time, the app looks at every move of the repeated cycle: a side that gave check with every move loses by perpetual check, a side that chased a piece with every move loses by perpetual chase, and only a plain repetition is a draw. The AI will not repeat a position when that would lose it the game, and the web version judges the same way, so an online game ends with the same result on both sides."
+  "text": "Repeated positions are now judged by the rules of xiangqi instead of simply declared a draw. When a position comes up a third time, the app looks at every move of that cycle: a side that checks on every move loses by perpetual check, a side that chases a piece on every move loses by perpetual chase, and only a plain repetition is a draw. The AI avoids repetitions it would lose. The web version judges the same way, so online games agree on both sides."
  },
  {
   "language": "zh-CN",
