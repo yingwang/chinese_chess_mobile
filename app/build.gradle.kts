@@ -26,8 +26,8 @@ android {
         applicationId = "com.yingwang.chinesechess"
         minSdk = 24
         targetSdk = 36
-        versionCode = 26
-        versionName = "2.5.2"
+        versionCode = 27
+        versionName = "2.6.0"
     }
 
     // Release signing comes from keystore.properties in the repo root (gitignored) or from
@@ -106,6 +106,9 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.16.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-database")
+
+    // The rating leaderboard on Google Play Games.
+    implementation("com.google.android.gms:play-services-games-v2:22.1.0")
 
     testImplementation("junit:junit:4.13.2")
     // Android's org.json is a stub on the JVM; the tests read the endgame data with the real one.

@@ -148,6 +148,9 @@
     <string name="unmute">Sound on</string>
     <string name="export">Export moves</string>
     <string name="my_stats">My record</string>
+    <string name="leaderboard">Leaderboard</string>
+    <string name="leaderboard_sign_in_failed">Sign in to Google Play Games to see the leaderboard</string>
+    <string name="leaderboard_unavailable">The leaderboard can\'t be opened right now</string>
     <string name="about">About</string>
     <string name="stats_message">Title: %1$s\nRating: %2$d\n\nGames: %3$d\nWon: %4$d  Lost: %5$d  Drawn: %6$d\nWin rate: %7$s</string>
     <string name="export_none">No moves to export</string>

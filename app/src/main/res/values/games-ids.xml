@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- From Play Console, Play Games services: the project and the rating leaderboard. -->
+<resources>
+    <string name="game_services_project_id" translatable="false">908042067358</string>
+    <string name="leaderboard_rating" translatable="false">CgkInruZ3LYaEAIQAA</string>
+</resources>

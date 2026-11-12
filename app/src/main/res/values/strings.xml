@@ -146,6 +146,9 @@
     <string name="unmute">取消静音</string>
     <string name="export">导出棋谱</string>
     <string name="my_stats">我的战绩</string>
+    <string name="leaderboard">排行榜</string>
+    <string name="leaderboard_sign_in_failed">登录 Google Play 游戏后才能看排行榜</string>
+    <string name="leaderboard_unavailable">排行榜暂时打不开</string>
     <string name="about">关于</string>
     <string name="stats_message">等级: %1$s\n积分: %2$d\n\n总局数: %3$d\n胜: %4$d  负: %5$d  平: %6$d\n胜率: %7$s</string>
     <string name="export_none">没有棋谱可导出</string>

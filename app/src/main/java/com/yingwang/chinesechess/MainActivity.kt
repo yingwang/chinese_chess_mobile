@@ -190,6 +190,8 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         OnlineSession.screenInSight(true)
+        // A rating earned before the leaderboard existed, offline, or signed out gets on the board.
+        Leaderboard.post(this)
     }
 
     override fun onStop() {
@@ -819,6 +821,7 @@ class MainActivity : AppCompatActivity() {
             val stats = RatingSystem.getStats(this)
             val sign = if (change >= 0) "+" else ""
             message.append(getString(R.string.rating_summary, stats.rating.toString(), "$sign$change", stats.rankTitle))
+            Leaderboard.post(this)
         }
 
         val builder = AlertDialog.Builder(this, R.style.ChessDialogTheme)
@@ -1373,6 +1376,7 @@ class MainActivity : AppCompatActivity() {
         }
         action(R.string.theme_title) { showThemeDialog() }
         action(R.string.my_stats) { showStatsDialog() }
+        action(R.string.leaderboard) { Leaderboard.show(this) }
         action(R.string.about) { showAboutDialog() }
         val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, entries.map { it.first }) {
             override fun areAllItemsEnabled() = false
