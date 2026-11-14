@@ -26,7 +26,7 @@ android {
         applicationId = "com.yingwang.chinesechess"
         minSdk = 24
         targetSdk = 36
-        versionCode = 27
+        versionCode = 28
         versionName = "2.6.0"
     }
 

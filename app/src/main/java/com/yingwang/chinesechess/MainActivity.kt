@@ -1317,23 +1317,6 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun changeDifficulty() {
-        if (onlineSession != null) {
-            toast(R.string.online_no_difficulty)
-            return
-        }
-        if (gameController.getMoveHistory().isEmpty()) {
-            showDifficultyDialog()
-            return
-        }
-        AlertDialog.Builder(this, R.style.ChessDialogTheme)
-            .setTitle(R.string.difficulty_restart_title)
-            .setMessage(R.string.difficulty_restart_message)
-            .setPositiveButton(R.string.ok) { _, _ -> showDifficultyDialog() }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
-
     private fun styledListAdapter(items: Array<String>): ListAdapter {
         return object : ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, items) {
             override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
@@ -1349,54 +1332,55 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showMoreDialog() {
-        val entries = mutableListOf<Pair<String, (() -> Unit)?>>()
-        fun section(title: Int) { entries += getString(title) to null }
-        fun action(title: Int, run: () -> Unit) { entries += getString(title) to run }
-        section(R.string.menu_play)
-        action(R.string.new_game) {
-            if (onlineSession != null) confirmLeaveOnline { showNewGameDialog() }
-            else confirmAbandonThen { showNewGameDialog() }
-        }
-        action(R.string.online_play) { showOnlineMenu() }
-        if (onlineSession == null) action(R.string.change_difficulty) { changeDifficulty() }
-        if (onlineSession != null && onlineGameLive() && onlineSession?.opponentJoined == true) {
-            action(R.string.online_resign) { confirmResign() }
-        }
-        section(R.string.menu_tools)
-        if (!onlineGameLive()) {
-            action(R.string.analysis_title) { startReview() }
-            action(R.string.replay_title) { toggleReplay() }
-        }
-        action(R.string.export) { exportMoveHistory() }
-        section(R.string.menu_settings)
-        action(if (isMuted) R.string.unmute else R.string.mute) { toggleMute() }
-        if (onlineSession == null) {
-            action(if (showEval) R.string.hide_eval else R.string.show_eval) { toggleEval() }
-        }
-        action(R.string.theme_title) { showThemeDialog() }
-        action(R.string.my_stats) { showStatsDialog() }
-        action(R.string.leaderboard) { Leaderboard.show(this) }
-        action(R.string.about) { showAboutDialog() }
-        val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, entries.map { it.first }) {
-            override fun areAllItemsEnabled() = false
-            override fun isEnabled(position: Int) = entries[position].second != null
-            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-                return (super.getView(position, convertView, parent) as TextView).apply {
-                    val heading = !isEnabled(position)
-                    textSize = if (heading) 12f else 16f
-                    typeface = Typeface.create(Typeface.SANS_SERIF, if (heading) Typeface.BOLD else Typeface.NORMAL)
-                    setTextColor(ContextCompat.getColor(this@MainActivity,
-                        if (heading) R.color.chess_text_secondary else R.color.chess_text))
-                    minHeight = ((if (heading) 36 else 48) * resources.displayMetrics.density).toInt()
-                    setBackgroundColor(Color.TRANSPARENT)
-                }
-            }
-        }
+    /** A titled list of actions, in the style of the other lists. */
+    private fun showActions(title: Int, actions: List<Pair<Int, () -> Unit>>) {
         AlertDialog.Builder(this, R.style.ChessDialogTheme)
-            .setTitle(R.string.more)
-            .setAdapter(adapter) { _, which -> entries[which].second?.invoke() }
+            .setTitle(title)
+            .setAdapter(styledListAdapter(actions.map { getString(it.first) }.toTypedArray())) { _, which ->
+                actions[which].second()
+            }
             .show()
+    }
+
+    /**
+     * Four entries, and resign while an online game is being played. Playing a friend and the
+     * AI level are both in New game; the leaderboard is in the record.
+     */
+    private fun showMoreDialog() {
+        val actions = mutableListOf<Pair<Int, () -> Unit>>(
+            R.string.new_game to {
+                if (onlineSession != null) confirmLeaveOnline { showNewGameDialog() }
+                else confirmAbandonThen { showNewGameDialog() }
+            },
+            R.string.review_game to { showReviewMenu() },
+            R.string.my_stats to { showStatsDialog() },
+            R.string.menu_settings to { showSettingsMenu() }
+        )
+        if (onlineGameLive() && onlineSession?.opponentJoined == true) {
+            actions += R.string.online_resign to { confirmResign() }
+        }
+        showActions(R.string.more, actions)
+    }
+
+    private fun showReviewMenu() {
+        val actions = mutableListOf<Pair<Int, () -> Unit>>()
+        if (!onlineGameLive()) {
+            actions += R.string.analysis_title to { startReview() }
+            actions += R.string.replay_title to { toggleReplay() }
+        }
+        actions += R.string.export to { exportMoveHistory() }
+        showActions(R.string.review_game, actions)
+    }
+
+    private fun showSettingsMenu() {
+        val actions = mutableListOf<Pair<Int, () -> Unit>>()
+        actions += (if (isMuted) R.string.unmute else R.string.mute) to { toggleMute() }
+        if (onlineSession == null) {
+            actions += (if (showEval) R.string.hide_eval else R.string.show_eval) to { toggleEval() }
+        }
+        actions += R.string.theme_title to { showThemeDialog() }
+        actions += R.string.about to { showAboutDialog() }
+        showActions(R.string.menu_settings, actions)
     }
 
     private fun toggleReplay() {
@@ -1434,6 +1418,7 @@ class MainActivity : AppCompatActivity() {
                 )
             )
             .setPositiveButton(R.string.ok, null)
+            .setNeutralButton(R.string.leaderboard) { _, _ -> Leaderboard.show(this) }
             .show()
     }
 

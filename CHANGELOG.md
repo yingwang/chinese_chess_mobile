@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-11-14
+
+### Added
+- 弈林榜 (Hall of Masters), a leaderboard on Google Play Games for the challenge rating. Play Games starts with the app and signs the player in on its own; the rating is posted after each rated game and whenever the app comes back, never before the first rated game. Offline, or without a Play Games profile, the game carries on and the rating is posted later. The board opens from the Record dialog
+- The privacy policy says what the leaderboard sends and where
+
+### Changed
+- More has four items: New game, Review, Record and Settings, plus Resign while an online game is being played. Playing a friend online and the AI level are reached from New game (the level is asked when a game against the AI starts, with the challenge switch); Review holds the evaluation graph, replay and export; Settings holds sound, the evaluation display, theme and About. The group headings are gone
+- 我的战绩 is called 战绩
+
 ## [2.5.2] - 2026-10-14
 
 ### Changed

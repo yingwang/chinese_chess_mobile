@@ -129,9 +129,6 @@
     <string name="challenge_no_hint">No hints in challenge mode</string>
     <string name="challenge_no_undo">No take-backs in challenge mode</string>
     <string name="mode_challenge">Challenge · %1$s</string>
-    <string name="difficulty_restart_title">Change level</string>
-    <string name="difficulty_restart_message">Changing the level starts the game again. Go ahead?</string>
-    <string name="change_difficulty">AI level</string>
     <string name="replay_title">Replay game</string>
     <string name="replay_progress">Move %1$d / %2$d</string>
     <string name="replay_next">Next ›</string>
@@ -270,10 +267,7 @@
     <string name="online_reason_they_resigned">Your friend resigned</string>
     <string name="online_no_undo">No take-backs in an online game</string>
     <string name="online_after_game">Review and replay open once the game is over</string>
-    <string name="online_no_difficulty">An online game has no AI level</string>
     <string name="online_move_failed">That move didn\'t go through and was taken back</string>
     <string name="online_game_over">This game is over</string>
-    <string name="menu_play">Play</string>
-    <string name="menu_tools">Game tools</string>
     <string name="menu_settings">Settings</string>
 </resources>

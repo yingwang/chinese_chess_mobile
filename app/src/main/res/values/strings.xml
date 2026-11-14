@@ -127,9 +127,6 @@
     <string name="challenge_no_hint">挑战模式不能提示</string>
     <string name="challenge_no_undo">挑战模式不能悔棋</string>
     <string name="mode_challenge">挑战 · %1$s</string>
-    <string name="difficulty_restart_title">更换难度</string>
-    <string name="difficulty_restart_message">更换难度会重新开始当前棋局，继续吗？</string>
-    <string name="change_difficulty">AI 难度</string>
     <string name="replay_title">棋谱回放</string>
     <string name="replay_progress">第 %1$d / %2$d 步</string>
     <string name="replay_next">下一步 ›</string>
@@ -145,7 +142,7 @@
     <string name="mute">静音</string>
     <string name="unmute">取消静音</string>
     <string name="export">导出棋谱</string>
-    <string name="my_stats">我的战绩</string>
+    <string name="my_stats">战绩</string>
     <string name="leaderboard">排行榜</string>
     <string name="leaderboard_sign_in_failed">登录 Google Play 游戏后才能看排行榜</string>
     <string name="leaderboard_unavailable">排行榜暂时打不开</string>
@@ -270,10 +267,7 @@
     <string name="online_reason_they_resigned">朋友认输了</string>
     <string name="online_no_undo">联机对局不能悔棋</string>
     <string name="online_after_game">对局结束后才能复盘和回放</string>
-    <string name="online_no_difficulty">联机对局里没有 AI 难度</string>
     <string name="online_move_failed">这步棋没有发出去，已经撤回</string>
     <string name="online_game_over">这一局已经结束</string>
-    <string name="menu_play">开始对局</string>
-    <string name="menu_tools">棋局工具</string>
     <string name="menu_settings">设置</string>
 </resources>
