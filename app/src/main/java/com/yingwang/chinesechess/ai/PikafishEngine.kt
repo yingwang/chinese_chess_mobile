@@ -16,7 +16,13 @@ class PikafishEngine(private val context: Context) : Closeable {
     private var process: Process? = null
     private var writer: BufferedWriter? = null
     private var reader: BufferedReader? = null
-    private var isReady = false
+    @Volatile private var isReady = false
+
+    /**
+     * False once the process is closed or found gone (it ended, or the pipe to it broke); every
+     * search then returns nothing at once, and the controller starts another or plays without.
+     */
+    val isAlive: Boolean get() = isReady
 
     /**
      * Engine score for the side to move: centipawns, or moves to mate (positive = the side
@@ -42,6 +48,14 @@ class PikafishEngine(private val context: Context) : Closeable {
             PieceType.CANNON to 'C',
             PieceType.SOLDIER to 'P'
         )
+
+        /**
+         * Whether the weights must be unpacked: missing ([onDiskLength] null), or not the size of
+         * the copy in the app ([appLength], -1 when it cannot be told), which is an unpacking cut
+         * short or a release with a new network. A complete copy is left as it is.
+         */
+        fun needsUnpacking(onDiskLength: Long?, appLength: Long): Boolean =
+            onDiskLength == null || (appLength >= 0 && onDiskLength != appLength)
     }
 
     /**
@@ -61,9 +75,12 @@ class PikafishEngine(private val context: Context) : Closeable {
 
         check(binaryFile.canExecute()) { "Engine binary is missing or not executable: $binaryFile" }
 
-        // Extract NNUE if not present
-        if (!nnueFile.exists()) {
-            extractAsset(NNUE_NAME, nnueFile)
+        // Unpacked on first use, and again only when the copy on disk is not the app's (see
+        // needsUnpacking): checking only that the file was there kept a truncated one for good,
+        // and the engine quits on its first search with a network it cannot read.
+        val appLength = assetLength(NNUE_NAME)
+        if (needsUnpacking(nnueFile.takeIf { it.exists() }?.length(), appLength)) {
+            extractAsset(NNUE_NAME, nnueFile, appLength)
         }
 
         // Start process
@@ -76,12 +93,12 @@ class PikafishEngine(private val context: Context) : Closeable {
 
         // Initialize UCI
         sendCommand("uci")
-        waitForResponse("uciok")
+        check(waitForResponse("uciok")) { "Engine ended before uciok" }
 
         sendCommand("setoption name Threads value 2")
         sendCommand("setoption name Hash value 32")
         sendCommand("isready")
-        waitForResponse("readyok")
+        check(waitForResponse("readyok")) { "Engine ended before readyok" }
 
         isReady = true
         Log.i(TAG, "Pikafish engine started")
@@ -101,9 +118,8 @@ class PikafishEngine(private val context: Context) : Closeable {
         depth: Int = 10,
         moveTimeMs: Long = 0,
         searchMoves: List<Move>? = null
-    ): Move? = withContext(Dispatchers.IO) {
-        if (!isReady) return@withContext null
-        if (searchMoves != null && searchMoves.isEmpty()) return@withContext null
+    ): Move? = search<Move?>(null) {
+        if (searchMoves != null && searchMoves.isEmpty()) return@search null
 
         val fen = boardToFen(board)
         sendCommand("position fen $fen")
@@ -115,12 +131,10 @@ class PikafishEngine(private val context: Context) : Closeable {
                 append(searchMoves.joinToString(" ") { posToUci(it.from) + posToUci(it.to) })
             }
         }
-        sendCommand(goCmd)
+        sendGo(goCmd)
 
         val bestMoveUci = readUntilBestMove()
-        if (bestMoveUci == null || bestMoveUci == "(none)") return@withContext null
-
-        uciToMove(bestMoveUci, board)
+        if (bestMoveUci == null || bestMoveUci == "(none)") null else uciToMove(bestMoveUci, board)
     }
 
     /**
@@ -134,13 +148,12 @@ class PikafishEngine(private val context: Context) : Closeable {
         depth: Int,
         multiPv: Int,
         searchMoves: List<Move>? = null
-    ): List<Pair<Move, Score>> = withContext(Dispatchers.IO) {
-        if (!isReady) return@withContext emptyList()
-        if (searchMoves != null && searchMoves.isEmpty()) return@withContext emptyList()
+    ): List<Pair<Move, Score>> = search<List<Pair<Move, Score>>>(emptyList()) {
+        if (searchMoves != null && searchMoves.isEmpty()) return@search emptyList()
 
         sendCommand("setoption name MultiPV value $multiPv")
         sendCommand("position fen ${boardToFen(board)}")
-        sendCommand(buildString {
+        sendGo(buildString {
             append("go depth $depth")
             if (searchMoves != null) {
                 append(" searchmoves ")
@@ -151,7 +164,12 @@ class PikafishEngine(private val context: Context) : Closeable {
         // The last line for each multipv index carries the deepest result for that move.
         val lines = sortedMapOf<Int, Pair<String, Score>>()
         while (true) {
-            val line = reader?.readLine() ?: break
+            val line = reader?.readLine()
+            if (line == null) {
+                // The process ended before its bestmove (see readUntilBestMove).
+                isReady = false
+                return@search emptyList()
+            }
             if (line.startsWith("info ")) {
                 parseScore(line)?.let { lastScore = it }
                 parseMultiPv(line)?.let { (index, uci, score) -> lines[index] = uci to score }
@@ -187,32 +205,91 @@ class PikafishEngine(private val context: Context) : Closeable {
      * Quick evaluation of a position, for the side to move. Shallow by default so it can run
      * after every move without a visible pause.
      */
-    suspend fun evaluate(board: Board, depth: Int = 10): Score? = withContext(Dispatchers.IO) {
-        if (!isReady) return@withContext null
+    suspend fun evaluate(board: Board, depth: Int = 10): Score? = search<Score?>(null) {
         sendCommand("position fen ${boardToFen(board)}")
-        sendCommand("go depth $depth")
+        sendGo("go depth $depth")
         readUntilBestMove()
-        lastScore
+        if (isReady) lastScore else null
     }
 
     /**
      * The score for the side to move and the move the search settled on, searching to [depth]
-     * or, when [moveTimeMs] is set, for that long instead.
+     * or, when [moveTimeMs] is set, for that long instead. Look at [isAlive] afterwards: a search
+     * the process did not live through returns whatever it had.
      */
-    suspend fun analyse(board: Board, depth: Int = 0, moveTimeMs: Long = 0): Pair<Score?, Move?> = withContext(Dispatchers.IO) {
-        if (!isReady) return@withContext null to null
+    suspend fun analyse(board: Board, depth: Int = 0, moveTimeMs: Long = 0): Pair<Score?, Move?> = search<Pair<Score?, Move?>>(null to null) {
         lastScore = null
         sendCommand("position fen ${boardToFen(board)}")
-        sendCommand(if (moveTimeMs > 0) "go movetime $moveTimeMs" else "go depth $depth")
+        sendGo(if (moveTimeMs > 0) "go movetime $moveTimeMs" else "go depth $depth")
         val uci = readUntilBestMove()
         lastScore to uci?.takeIf { it != "(none)" }?.let { uciToMove(it, board) }
+    }
+
+    // A `stop` the engine receives while it is idle is ignored, and one sent the moment a search
+    // is asked for can reach it before that search's `go`: the search then ran its full length
+    // for a caller that had moved on. So a stop is held from the moment a search is asked for
+    // ([search], on the caller's thread) until its `go` is out, and sent straight after it.
+    private val stopLock = Any()
+    /** A search has been asked for and its `bestmove` not read yet. */
+    private var armed = false
+    private var goSent = false
+    private var stopAsked = false
+
+    private fun arm() {
+        synchronized(stopLock) {
+            armed = true
+            goSent = false
+            stopAsked = false
+        }
+    }
+
+    private fun disarm() {
+        synchronized(stopLock) {
+            armed = false
+            goSent = false
+            stopAsked = false
+        }
+    }
+
+    /** Sends the search's [command], and a `stop` straight after if one came while it was set up. */
+    private fun sendGo(command: String) {
+        synchronized(stopLock) {
+            sendCommand(command)
+            goSent = true
+            if (stopAsked) sendCommand("stop")
+        }
+    }
+
+    /**
+     * One search, run on the I/O thread: [none] if the engine is gone, or turns out to be gone on
+     * the way. A broken pipe to an engine that has ended is an IOException; it used to end the app.
+     */
+    private suspend fun <T> search(none: T, body: () -> T): T {
+        arm()
+        return withContext(Dispatchers.IO) {
+            try {
+                if (isReady) body() else none
+            } catch (e: IOException) {
+                Log.w(TAG, "engine gone", e)
+                isReady = false
+                none
+            } finally {
+                disarm()
+            }
+        }
     }
 
     /** Reads engine output up to `bestmove`, recording the score of each `info` line on the way. */
     private fun readUntilBestMove(): String? {
         var bestMoveUci: String? = null
         while (true) {
-            val line = reader?.readLine() ?: break
+            val line = reader?.readLine()
+            if (line == null) {
+                // The process ended (it quits on a network it cannot use, for one): nothing more
+                // will come, and writing to it would fail.
+                isReady = false
+                break
+            }
             Log.d(TAG, "< $line")
             if (line.startsWith("info ")) {
                 parseScore(line)?.let { lastScore = it }
@@ -241,12 +318,19 @@ class PikafishEngine(private val context: Context) : Closeable {
     }
 
     /**
-     * Stop any ongoing search.
+     * Stop any ongoing search: at once if its `go` is out, otherwise as soon as it is (see
+     * [sendGo]). Nothing when no search has been asked for.
      */
     fun stopSearch() {
-        try {
-            sendCommandSync("stop")
-        } catch (_: Exception) {}
+        synchronized(stopLock) {
+            if (goSent) {
+                try {
+                    sendCommandSync("stop")
+                } catch (_: Exception) {}
+            } else if (armed) {
+                stopAsked = true
+            }
+        }
     }
 
     override fun close() {
@@ -337,22 +421,46 @@ class PikafishEngine(private val context: Context) : Closeable {
         writer?.flush()
     }
 
-    private fun waitForResponse(expected: String) {
+    /** Reads up to the line starting with [expected]; false if the process ended first. */
+    private fun waitForResponse(expected: String): Boolean {
         while (true) {
-            val line = reader?.readLine() ?: break
+            val line = reader?.readLine() ?: return false
             Log.d(TAG, "< $line")
-            if (line.startsWith(expected)) break
+            if (line.startsWith(expected)) return true
         }
     }
 
     // --- Asset extraction ---
 
-    private fun extractAsset(assetName: String, targetFile: File) {
+    /** Size of [assetName] in the app; -1 if it cannot be told (were it stored compressed, say). */
+    private fun assetLength(assetName: String): Long = try {
+        context.assets.openFd(assetName).use { it.length }
+    } catch (_: Exception) {
+        -1L
+    }
+
+    /**
+     * Unpacks [assetName] to [targetFile] through a file of its own, put in place only once it is
+     * whole ([length] long, when that is known), so an unpacking cut short (the app ended, the
+     * storage full) never stands as the real thing. On failure whatever was there is left as it
+     * was and the engine is not started; the built-in search plays instead.
+     */
+    private fun extractAsset(assetName: String, targetFile: File, length: Long) {
         Log.i(TAG, "Extracting $assetName to ${targetFile.absolutePath}")
-        context.assets.open(assetName).use { input ->
-            FileOutputStream(targetFile).use { output ->
-                input.copyTo(output)
+        val part = File(targetFile.parentFile, targetFile.name + ".part")
+        // Not begun without room for it: filling the storage to the last byte troubles every app.
+        if (length > 0) check((targetFile.parentFile?.usableSpace ?: 0L) > length) { "No room to unpack $assetName" }
+        try {
+            context.assets.open(assetName).use { input ->
+                FileOutputStream(part).use { output ->
+                    input.copyTo(output)
+                }
             }
+            if (length >= 0) check(part.length() == length) { "$assetName unpacked short" }
+            if (!part.renameTo(targetFile)) throw IOException("Could not move $part into place")
+        } catch (e: Exception) {
+            part.delete()
+            throw e
         }
     }
 }

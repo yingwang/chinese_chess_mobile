@@ -1,0 +1,10 @@
+[
+ {
+  "language": "en-US",
+  "text": "Fixes from a full review of the app. A finished game is no longer offered for resuming, and a rated result is never counted twice. The AI can no longer play a leftover move into a new game or an endgame study. Undo takes back the right number of moves. If the engine fails, the built-in engine plays on instead of the app closing. Online, both players now see the same result. Device backup works again."
+ },
+ {
+  "language": "zh-CN",
+  "text": "全面检查之后的一批修复。已经结束的对局不再提示继续，等级分不会重复计算；上一局 AI 的着法不会再落到新局或残局里；悔棋按最后一步是谁走的，退一步或两步；引擎出错时由内置棋手接着下，不再闪退；联机对局双方看到的结果一致；系统备份恢复正常。"
+ }
+]

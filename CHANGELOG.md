@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.1] - 2026-11-21
+
+### Fixed
+- Undo takes back one move or two according to who made the last one, lets the AI move when the turn it leaves is the AI's, and says so when there is nothing to take back (only the AI's opening move on the board)
+- A finished local game takes no further moves in any mode. The status line and the exported record carry the result of a repeated position, and a failed endgame study says so; the status line is refreshed when the game-over dialog opens, so a game ended by repetition no longer leaves a side highlighted
+- A finished game is no longer offered for resuming. The saved game is deleted as soon as a result is announced, also when the AI's last move lands after the app has gone to the background, and when a new game from the menu replaces it, so a rated result cannot be counted a second time. The save now records whether it was a challenge game
+- An AI move searched for one game can no longer be played into the next: the game and the side to move are checked before the search starts and again before the move is applied, and the AI vs AI chain ends when a new game, a replay or an undo comes in between. This was reachable by watching AI vs AI, opening a replay and then starting an endgame study
+- Hint and AI searches are counted, and stopped by a new game, an undo, a review or the player's own move; a hint that arrives late is discarded. A stop sent before a search's `go` is held and sent right after it instead of leaking into the next search
+- The engine no longer takes the app down with it. A broken pipe or a closed stream ends the search with no result, the dead engine is replaced, and after two losses, or when the engine cannot be started at all, the built-in engine plays for the rest of the session. The network file is unpacked again when its size differs from the one shipped, to a temporary file first and only when there is room for it. An engine whose start finishes after the screen is gone is closed
+- Undo and Hint do nothing during a plain replay, and engine arrows are drawn only on the game the review was made for
+- Online: when the two players had announced different results, the room's result replaces the local one. Rejoining a saved room can no longer overlap with opening another, and a network error while looking for one's seat is reported as a network error instead of a full room
+- Android backup leaves out the 51 MB engine network, which had put the whole backup over the 25 MB limit so that nothing was backed up
+
 ## [2.6.0] - 2026-11-14
 
 ### Added

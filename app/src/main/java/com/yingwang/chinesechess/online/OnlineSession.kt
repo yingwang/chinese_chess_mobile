@@ -14,6 +14,7 @@ import com.yingwang.chinesechess.model.PieceColor
 import com.yingwang.chinesechess.model.Position
 import com.yingwang.chinesechess.online.OnlineProtocol.WireMove
 import com.yingwang.chinesechess.online.OnlineProtocol.WireResult
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
@@ -244,6 +245,9 @@ class OnlineSession private constructor(
         } catch (e: TimeoutCancellationException) {
             Log.w(TAG, "timed out", e)
             throw OnlineException(Reason.NETWORK, e)
+        } catch (e: CancellationException) {
+            // The screen that asked has gone (or the call was called off): no error to show.
+            throw e
         } catch (e: OnlineException) {
             throw e
         } catch (e: Exception) {
@@ -332,8 +336,13 @@ class OnlineSession private constructor(
         private suspend fun findOwnSeat(code: String, uid: String): OnlineSession? {
             val room = try {
                 rooms().child(code).get().await()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                return null
+                // Refused: the room is not this player's. Anything else (offline, say) is worth
+                // another try, not "the room is full".
+                if (isPermissionDenied(e)) return null
+                throw OnlineException(Reason.NETWORK, e)
             }
             for (color in PieceColor.values()) {
                 if (room.child("players").child(OnlineProtocol.colorKey(color)).child("uid").value == uid) {

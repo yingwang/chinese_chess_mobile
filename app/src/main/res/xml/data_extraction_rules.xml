@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Backup and device transfer from Android 12; the same as res/xml/backup_rules.xml. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="pikafish.nnue" />
+        <exclude domain="file" path="pikafish.nnue.part" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="pikafish.nnue" />
+        <exclude domain="file" path="pikafish.nnue.part" />
+    </device-transfer>
+</data-extraction-rules>

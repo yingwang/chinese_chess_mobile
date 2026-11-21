@@ -213,8 +213,10 @@ class MainActivity : AppCompatActivity() {
         // The clocks stop and the engine does no work while the app is out of sight; stopped
         // first, so the save has both clocks to the moment the app left.
         gameController.setInForeground(false)
-        if (gameController.getMoveHistory().isNotEmpty()) {
-            gameController.saveGame(this)
+        // A finished game is not kept to be continued; only one still in play is.
+        when {
+            onlineSession == null && gameController.isGameOver() -> gameController.deleteSavedGame(this)
+            gameController.getMoveHistory().isNotEmpty() -> gameController.saveGame(this, challengeGame())
         }
     }
 
@@ -348,7 +350,12 @@ class MainActivity : AppCompatActivity() {
                 toast(R.string.challenge_no_undo)
                 return@setOnClickListener
             }
-            if (gameController.getMoveHistory().isEmpty()) {
+            // A replay is only to look at; the game behind it stays as it is.
+            if (gameController.isInReplayMode()) {
+                toast(R.string.replay_blocked)
+                return@setOnClickListener
+            }
+            if (!gameController.canUndo()) {
                 toast(R.string.undo_none)
                 return@setOnClickListener
             }
@@ -373,6 +380,14 @@ class MainActivity : AppCompatActivity() {
             }
             if (isRatedGame()) {
                 toast(R.string.challenge_no_hint)
+                return@setOnClickListener
+            }
+            if (gameController.isInReplayMode()) {
+                toast(R.string.replay_blocked)
+                return@setOnClickListener
+            }
+            if (gameController.isGameOver()) {
+                toast(R.string.online_game_over)
                 return@setOnClickListener
             }
             if (!gameController.isPlayerTurn()) {
@@ -475,7 +490,7 @@ class MainActivity : AppCompatActivity() {
                 boardView.clearSelection()
                 return@setOnMoveListener
             }
-            if (session != null && gameController.isGameOver()) {
+            if (gameController.isGameOver()) {
                 toast(R.string.online_game_over)
                 boardView.clearSelection()
                 return@setOnMoveListener
@@ -508,10 +523,14 @@ class MainActivity : AppCompatActivity() {
     private fun sideName(color: PieceColor): String =
         getString(if (color == PieceColor.RED) R.string.red_side else R.string.black_side)
 
+    /** "Red wins" or "Draw". */
+    private fun resultShort(winner: PieceColor?): String =
+        winner?.let { getString(R.string.wins_short, sideName(it)) } ?: getString(R.string.draw_short)
+
     private fun updateStatus() {
         statusText.text = getStatusText()
         val board = gameController.getCurrentBoard()
-        val over = board.isCheckmate() || board.isStalemate() || (onlineSession != null && gameController.isGameOver())
+        val over = board.isCheckmate() || board.isStalemate() || gameController.isGameOver()
         val redActive = !over && board.currentPlayer == PieceColor.RED
         val blackActive = !over && board.currentPlayer == PieceColor.BLACK
         redCard.setBackgroundResource(if (redActive) R.drawable.player_card_active else R.drawable.player_card)
@@ -547,6 +566,10 @@ class MainActivity : AppCompatActivity() {
         return when {
             board.isCheckmate() -> getString(R.string.wins, sideName(board.currentPlayer.opposite()))
             board.isStalemate() -> getString(R.string.stalemate_win_short, sideName(board.currentPlayer.opposite()))
+            // Ended by repetition (长将, 长捉, or a draw), with moves still on the board.
+            gameController.result() != null -> resultShort(gameController.result()!!.winner)
+            // A study whose moves ran out without mate.
+            gameController.isEndgameMode() && gameController.isGameOver() -> getString(R.string.endgame_failed_title)
             board.isInCheck(board.currentPlayer) -> getString(R.string.in_check, side)
             gameController.isEndgameMode() && !gameController.isGameOver() ->
                 getString(R.string.endgame_goal, gameController.getEndgame()?.mateIn ?: 0, gameController.endgameMovesLeft())
@@ -790,6 +813,9 @@ class MainActivity : AppCompatActivity() {
      * or, after a run of wins or losses at one level, move to the next level.
      */
     private fun showGameOver(result: GameController.GameResult) {
+        // The status line was drawn with the move, before the result was known (a repeated
+        // position leaves no mate on the board to read it from).
+        updateStatus()
         if (onlineSession != null) {
             showOnlineGameOver(result)
             return
@@ -1002,7 +1028,13 @@ class MainActivity : AppCompatActivity() {
         }
         val index = gameController.getReplayIndex()
         val moreToCome = index < gameController.getReplayLength()
-        val engineMove = if (index in deepLooks) deepLooks[index] else analysis?.best?.getOrNull(index)
+        // Only for the game the analysis (and the longer looks, made with it) was of: another
+        // game's arrows at the same move numbers would point anywhere.
+        val engineMove = when {
+            analysis == null -> null
+            index in deepLooks -> deepLooks[index]
+            else -> analysis.best.getOrNull(index)
+        }
         boardView.showSuggestion(if (replaying && moreToCome) engineMove else null)
         if (!show) return
         if (analysis == null) {
@@ -1102,6 +1134,8 @@ class MainActivity : AppCompatActivity() {
                         showDifficultyDialog()
                     }
                     2 -> {
+                        // The game given up for this one is not offered again at the next launch.
+                        gameController.deleteSavedGame(this)
                         gameController.setGameMode(GameMode.PLAYER_VS_PLAYER)
                         gameController.startNewGame()
                         updateGameModeDisplay()
@@ -1147,6 +1181,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun startStudy(study: EndgameStudy) {
         if (gameController.isInReplayMode()) exitReplay()
+        // As with any new game, the one it replaces is not offered again at the next launch.
+        gameController.deleteSavedGame(this)
         gameController.startEndgame(study)
         updateGameModeDisplay()
     }
@@ -1229,9 +1265,12 @@ class MainActivity : AppCompatActivity() {
     /** Challenge games count towards the rating and allow no hints or take-backs; practice games are the opposite. */
     private val challengeMode: Boolean get() = settings.getBoolean(KEY_CHALLENGE, false)
 
+    /** Whether the game on the board is a challenge game: as it was saved, if it was resumed; else the setting. */
+    private fun challengeGame(): Boolean = gameController.savedChallenge ?: challengeMode
+
     /** Whether hints and undo are withheld in the game on the board. */
     private fun isRatedGame(): Boolean =
-        challengeMode && gameController.getGameMode() == GameMode.PLAYER_VS_AI && !gameController.isEndgameMode()
+        challengeGame() && gameController.getGameMode() == GameMode.PLAYER_VS_AI && !gameController.isEndgameMode()
 
     /**
      * Picks a level (each with a line on who it suits) and practice or challenge, rebuilds the
@@ -1296,6 +1335,9 @@ class MainActivity : AppCompatActivity() {
                     .putBoolean(KEY_CHALLENGE, challengeSwitch.isChecked)
                     .apply()
 
+                // A fresh game replaces the one on the board, which is not offered again at the
+                // next launch (nor, its setting changed, resumed as the other kind of game).
+                gameController.deleteSavedGame(this@MainActivity)
                 gameController.destroy()
                 gameController = GameController(this@MainActivity, difficulty, audioManager)
                 setupGameControllerCallbacks()
@@ -1462,8 +1504,8 @@ class MainActivity : AppCompatActivity() {
         val result = when {
             board.isCheckmate() -> getString(R.string.wins_short, sideName(board.currentPlayer.opposite()))
             board.isStalemate() -> getString(R.string.stalemate_win_short, sideName(board.currentPlayer.opposite()))
-            onlineSession != null && onlineEnd != null ->
-                onlineEnd.winner?.let { getString(R.string.wins_short, sideName(it)) } ?: getString(R.string.draw_short)
+            onlineSession != null && onlineEnd != null -> resultShort(onlineEnd.winner)
+            gameController.result() != null -> resultShort(gameController.result()!!.winner)
             else -> getString(R.string.result_unfinished)
         }
         sb.appendLine(getString(R.string.export_result, result))
@@ -1516,6 +1558,8 @@ class MainActivity : AppCompatActivity() {
     /** Shown in the status line once this phone has been without a connection for a moment. */
     private var onlineReconnecting = false
     private var waitingDialog: AlertDialog? = null
+    /** Going back to the room of an online game the app was taken away from (rejoinSavedOnlineGame). */
+    private var rejoining: kotlinx.coroutines.Job? = null
     private val reconnectHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val showReconnecting = Runnable {
         if (onlineSession?.connected == false) {
@@ -1582,7 +1626,17 @@ class MainActivity : AppCompatActivity() {
                 onlineEndedAt = it
                 updateClocks()
             }
-            if (onlineResult != null) return
+            val shown = onlineResult
+            if (shown != null) {
+                if (OnlineProtocol.sameOutcome(shown, complete)) return
+                // The room took another result than the one this board announced (the friend's
+                // got there first, or this one was turned down): the room's is the game's, and
+                // the player is told it, as the friend is.
+                onlineResultDialog?.dismiss()
+                onlineResultDialog = null
+                onlineResult = null
+                pendingOnlineResult = null
+            }
             // Theirs arrived first (a resignation, or a result this board has not reached).
             if (!gameController.isGameOver()) audioManager.playGameOverSound()
             endWithRoomResult(complete)
@@ -1605,7 +1659,9 @@ class MainActivity : AppCompatActivity() {
      * agreed to give up the game on the board (through New game), so it is not asked again.
      */
     private fun showOnlineMenu(confirmed: Boolean = false) {
-        if (onlineSession != null) {
+        // The room of the game picked up at launch counts too, while the way back to it is still
+        // being found: a second room begun meanwhile would have both reporting to this screen.
+        if (onlineSession != null || rejoining?.isActive == true) {
             toast(R.string.online_already)
             return
         }
@@ -1810,6 +1866,11 @@ class MainActivity : AppCompatActivity() {
         stopReview()
         // The game on the board is given up for this one, as with any new game.
         gameController.deleteSavedGame(this)
+        // One room at a time: one this screen was already in reports to it no more.
+        onlineSession?.takeIf { it !== session }?.let { old ->
+            old.listener = null
+            old.stop()
+        }
         onlineSession = session
         onlineMoves = moves
         onlineStartedAt = null
@@ -1839,7 +1900,7 @@ class MainActivity : AppCompatActivity() {
         val saved = OnlineStore.load(this) ?: return false
         gameController.deleteSavedGame(this)
         statusText.text = getString(R.string.online_rejoining, saved.code)
-        lifecycleScope.launch {
+        rejoining = lifecycleScope.launch {
             try {
                 val snapshot = OnlineSession.resume(saved.code, saved.color)
                 if (snapshot == null || snapshot.result != null || snapshot.status == OnlineProtocol.STATUS_FINISHED) {

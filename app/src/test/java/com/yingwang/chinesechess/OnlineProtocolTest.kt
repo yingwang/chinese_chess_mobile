@@ -238,6 +238,25 @@ class OnlineProtocolTest {
         assertEquals(mate, OnlineProtocol.completeResult(mate, moveCount = 41))
     }
 
+    @Test
+    fun aResultIsTheSameOutcomeByTypeAndWinnerNotByItsTime() {
+        // A resignation as sent (no time) and as read back from the room (the server's time).
+        val sent = WireResult(ResultType.RESIGN, PieceColor.BLACK)
+        val readBack = OnlineProtocol.decodeResult(mapOf("type" to "resign", "winner" to "black", "t" to 1_791_652_000_000L))!!
+        assertTrue(OnlineProtocol.sameOutcome(sent, readBack))
+        // A stalemate from before 2.5.1, once its winner is filled in, is the one this board reached.
+        val old = OnlineProtocol.completeResult(OnlineProtocol.decodeResult(mapOf("type" to "stalemate"))!!, moveCount = 41)
+        assertTrue(OnlineProtocol.sameOutcome(WireResult(ResultType.STALEMATE, PieceColor.RED), old))
+
+        // The room holding another result than the one announced here: the room's stands.
+        val chase = WireResult(ResultType.PERPETUAL_CHASE, PieceColor.RED)
+        assertFalse(OnlineProtocol.sameOutcome(chase, WireResult(ResultType.REPETITION, null)))
+        assertFalse(OnlineProtocol.sameOutcome(chase, WireResult(ResultType.PERPETUAL_CHASE, PieceColor.BLACK)))
+        // A mate here, the friend's resignation there: the same winner, another ending.
+        assertFalse(OnlineProtocol.sameOutcome(WireResult(ResultType.CHECKMATE, PieceColor.RED), WireResult(ResultType.RESIGN, PieceColor.RED)))
+        assertFalse(OnlineProtocol.sameOutcome(chase, WireResult(ResultType.UNKNOWN, null)))
+    }
+
     // ── Bringing the board in line with the database ──
 
     private fun wire(vararg squares: IntArray): List<WireMove> =

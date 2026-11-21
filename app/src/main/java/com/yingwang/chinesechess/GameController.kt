@@ -84,8 +84,29 @@ class GameController(
     private val inEndgame: Boolean get() = endgame != null
     /** Set when the result is announced; cleared by anything that resets or rewinds the game. */
     private var gameOver = false
+    /** How the game ended, once it has; null while it goes on (and after a study runs out of moves). */
+    private var lastResult: GameResult? = null
+    /**
+     * Searches that show "thinking" (the AI's move, a hint) still running. Counted, because one
+     * can outlive the game it was for while the next one has started.
+     */
+    private var thinkingCount = 0
+    /** A search for the AI's move or a hint is in the engine right now (see [stopForegroundSearch]). */
+    private var foregroundSearching = false
     private val fallbackAI: ChessAI = ChessAI(maxDepth = 3, timeLimit = 2000, quiescenceDepth = 2)
     private var pikafishEngine: PikafishEngine? = null
+    /** The engine would not start; the built-in search plays for the rest of this controller. */
+    private var engineFailed = false
+    /** Engines whose process went away mid-game; after [MAX_ENGINE_LOSSES] no other is started. */
+    private var enginesLost = 0
+    /** Set by [destroy]: an engine still starting then is closed rather than kept. */
+    private var destroyed = false
+    /**
+     * For a game picked up from a save: whether it was a challenge game, as saved with it. Null
+     * for a game begun here, and for a save from before 2.6.1, which the setting decides as before.
+     */
+    var savedChallenge: Boolean? = null
+        private set
 
     private var moveHistory = mutableListOf<Move>()
     private var positionHashes = mutableListOf<Long>()
@@ -146,8 +167,11 @@ class GameController(
     fun startNewGame() {
         gameGeneration++
         interruptBackground()
+        stopForegroundSearch()
         notes.clear()
         gameOver = false
+        lastResult = null
+        savedChallenge = null
         replayMode = false
         endgame = null
         board = Board.createInitialBoard()
@@ -182,9 +206,10 @@ class GameController(
     fun getMoveHistory(): List<Move> = moveHistory.toList()
 
     fun makePlayerMove(move: Move): Boolean {
-        if (replayMode) return false
-        // Online, only your own pieces, on your own turn, while the game is on.
-        if (online && (gameOver || board.currentPlayer != aiColor.opposite())) return false
+        // Nothing more is played once the game is over, whatever the mode.
+        if (replayMode || gameOver) return false
+        // Online, only your own pieces, on your own turn.
+        if (online && board.currentPlayer != aiColor.opposite()) return false
 
         // Validate move
         val legalMoves = board.getAllLegalMoves()
@@ -192,6 +217,8 @@ class GameController(
             return false
         }
 
+        // A hint still being worked out is for the position this move leaves behind.
+        stopForegroundSearch()
         playMove(move)
 
         // Check game over
@@ -203,6 +230,7 @@ class GameController(
         if (study != null && endgameMovesLeft() <= 0) {
             gameOver = true
             syncClock()
+            forgetSavedGame()
             audio.playGameOverSound()
             onEndgameFailed?.invoke(study)
             return true
@@ -240,8 +268,11 @@ class GameController(
     fun startOnlineGame(myColor: PieceColor, moves: List<Pair<Position, Position>> = emptyList()): Int {
         gameGeneration++
         interruptBackground()
+        stopForegroundSearch()
         notes.clear()
         gameOver = false
+        lastResult = null
+        savedChallenge = null
         replayMode = false
         endgame = null
         gameMode = GameMode.ONLINE
@@ -352,34 +383,55 @@ class GameController(
      * about 230 MB each, and the next caller started another.
      */
     private suspend fun ensurePikafish(): PikafishEngine? {
-        pikafishEngine?.let { return it }
+        pikafishEngine?.let { engine ->
+            if (engine.isAlive) return engine
+            // Its process went away (PikafishEngine.isAlive): another is started, but not for ever.
+            engine.close()
+            pikafishEngine = null
+            enginesLost++
+        }
+        if (destroyed || engineFailed || enginesLost >= MAX_ENGINE_LOSSES) return null
         return withContext(NonCancellable) {
             val engine = PikafishEngine(context)
             try {
                 engine.start()
-                pikafishEngine = engine
-                engine
+                if (destroyed) {
+                    // The controller went while the engine started; nothing would ever close it.
+                    engine.close()
+                    null
+                } else {
+                    pikafishEngine = engine
+                    engine
+                }
             } catch (e: Exception) {
                 Log.e("GameController", "Failed to start Pikafish", e)
                 engine.close()
+                // Not tried again on every move (an unpacking that failed for want of room would
+                // be tried each time); the built-in search plays until the next start of the app.
+                engineFailed = true
                 null
             }
         }
     }
 
     fun makeAIMove() {
-        if (board.isCheckmate() || board.isStalemate()) return
+        if (gameOver || replayMode || !shouldAIMove() || board.isCheckmate() || board.isStalemate()) return
         // The AI's turn comes before looking back over the game.
         interruptBackground()
+        // Taken now, not when the coroutine starts: a game set up in the same breath (a study, or
+        // an online game, begun straight from a replay) must not have this move played in it.
+        val generation = gameGeneration
+        val sideToMove = board.currentPlayer
 
-        onAIThinking?.invoke(true)
+        thinking(true)
 
         coroutineScope.launch {
             try {
-                val generation = gameGeneration
+                if (generation != gameGeneration) return@launch
                 val thinkStart = System.currentTimeMillis()
-                val sideToMove = board.currentPlayer
                 var (move, score) = searchBestMove(null)
+                // A new game, an undo or a replay came meanwhile: this move is for a board gone.
+                if (generation != gameGeneration || board.currentPlayer != sideToMove) return@launch
 
                 // A move that repeats a position a third time ends the game, judged by the
                 // rules of repetition (Repetition): a loss for the side that checked or chased
@@ -415,15 +467,37 @@ class GameController(
                     // hold it back so every AI move takes at least MIN_THINK_MS.
                     val elapsed = System.currentTimeMillis() - thinkStart
                     if (elapsed < MIN_THINK_MS) delay(MIN_THINK_MS - elapsed)
-                    if (generation == gameGeneration) {
+                    if (generation == gameGeneration && board.currentPlayer == sideToMove) {
                         // The root score of the search is the engine's view of the line it chose.
                         onEvaluationUpdated?.invoke(toRedPerspective(score, sideToMove))
                         applyAIMove(move)
                     }
                 }
             } finally {
-                onAIThinking?.invoke(false)
+                thinking(false)
             }
+        }
+    }
+
+    private fun thinking(on: Boolean) {
+        thinkingCount = (thinkingCount + if (on) 1 else -1).coerceAtLeast(0)
+        onAIThinking?.invoke(thinkingCount > 0)
+    }
+
+    /**
+     * Stops the AI's or a hint's search in hand, so the engine is free at once for what replaced
+     * it; the search returns early and its caller sees the game has moved on.
+     */
+    private fun stopForegroundSearch() {
+        if (foregroundSearching) pikafishEngine?.stopSearch()
+    }
+
+    private suspend fun <T> foregroundSearch(block: suspend () -> T): T {
+        foregroundSearching = true
+        try {
+            return block()
+        } finally {
+            foregroundSearching = false
         }
     }
 
@@ -443,11 +517,11 @@ class GameController(
         val fromEngine = engineMutex.withLock {
             val engine = ensurePikafish() ?: return@withLock null
             if (difficulty.candidates > 1 && !inEndgame) {
-                val options = engine.findCandidates(board, depth, difficulty.candidates, candidates)
+                val options = foregroundSearch { engine.findCandidates(board, depth, difficulty.candidates, candidates) }
                 val choice = WeakPlay.pick(options, difficulty.spreadCp) ?: return@withLock null
                 return@withLock choice to options.first { it.first == choice }.second
             }
-            val move = engine.findBestMove(board, depth = depth, moveTimeMs = timeMs, searchMoves = candidates)
+            val move = foregroundSearch { engine.findBestMove(board, depth = depth, moveTimeMs = timeMs, searchMoves = candidates) }
             if (move != null) move to engine.lastScore else null
         }
         if (fromEngine != null) return fromEngine
@@ -516,8 +590,11 @@ class GameController(
         updateStats()
 
         if (!checkGameOver() && gameMode == GameMode.AI_VS_AI) {
+            val generation = gameGeneration
             delay(500) // Brief pause for visualization
-            makeAIMove()
+            // Not if a new game, a replay or a take-back came during the pause: the old game's next
+            // move would be played in whatever is on the board now.
+            if (generation == gameGeneration) makeAIMove()
         }
     }
 
@@ -566,26 +643,51 @@ class GameController(
 
     fun isGameOver(): Boolean = gameOver
 
+    /** How the game ended (see [lastResult]). */
+    fun result(): GameResult? = lastResult
+
     private fun checkGameOver(): Boolean {
         val result = resultOf(board, positionHashes, initialBoard, moveHistory)
         // Settled before the result is announced: the game-over dialog asks whether the game is
         // over, and the clocks stop on the last move.
         gameOver = result != null
+        lastResult = result
         syncClock()
         if (result == null) return false
+        // A finished game is not kept to be picked up again, however it ended: the AI's last
+        // move can land while the app is in the background, after the save that was made then.
+        forgetSavedGame()
         audio.playGameOverSound()
         onGameOver?.invoke(result)
         return true
     }
 
-    fun undoLastMove(): Boolean {
-        if (online) return false
-        gameGeneration++
-        gameOver = false
-        if (moveHistory.isEmpty()) return false
+    /** Drops the saved game, the one on the board being over; an online game is never saved here. */
+    private fun forgetSavedGame() {
+        if (!online) deleteSavedGame(context)
+    }
 
-        // In player vs AI mode, undo two moves (player and AI)
-        val movesToUndo = if (gameMode == GameMode.PLAYER_VS_AI) 2 else 1
+    /**
+     * Whether there is a move to take back: against the AI, one of the player's own (the AI's
+     * opening move alone, when the player has black, is not one).
+     */
+    fun canUndo(): Boolean {
+        if (online || moveHistory.isEmpty()) return false
+        if (gameMode != GameMode.PLAYER_VS_AI) return true
+        return moveHistory.any { it.piece.color != aiColor }
+    }
+
+    fun undoLastMove(): Boolean {
+        // Not under a replay: the game behind it would change while the replay shows the old one.
+        if (replayMode || !canUndo()) return false
+        gameGeneration++
+        stopForegroundSearch()
+        gameOver = false
+        lastResult = null
+
+        // Against the AI, back to the player's last move: the AI's reply goes with it, if it has
+        // made one (not when the player's move ended the game or the study). Otherwise one move.
+        val movesToUndo = if (gameMode == GameMode.PLAYER_VS_AI && moveHistory.last().piece.color == aiColor) 2 else 1
 
         repeat(movesToUndo.coerceAtMost(moveHistory.size)) {
             moveHistory.removeAt(moveHistory.size - 1)
@@ -621,15 +723,19 @@ class GameController(
 
         onBoardUpdated?.invoke(board)
         updateStats()
-        refreshEvaluation()
+        // With two AIs, the one to move plays on.
+        if (shouldAIMove()) makeAIMove() else refreshEvaluation()
         return true
     }
 
     fun startEndgame(study: EndgameStudy) {
         gameGeneration++
         interruptBackground()
+        stopForegroundSearch()
         notes.clear()
         gameOver = false
+        lastResult = null
+        savedChallenge = null
         replayMode = false
         endgame = study
         board = Fen.parse(study.fen)
@@ -697,6 +803,7 @@ class GameController(
         // AI-vs-AI game pauses, so the moves under review do not change (see exitReplayMode).
         gameGeneration++
         interruptBackground()
+        stopForegroundSearch()
         replayMode = true
         syncClock()
         replayMoves = moveHistory.toList()
@@ -836,7 +943,8 @@ class GameController(
         scheduleBackgroundAnalysis()
     }
 
-    fun saveGame(context: Context): Boolean {
+    /** Saves the game on the board; [challenge] is whether it is a challenge game (see [savedChallenge]). */
+    fun saveGame(context: Context, challenge: Boolean): Boolean {
         // An online game lives in the database and is picked up again from there (OnlineStore).
         if (online) return false
         try {
@@ -848,6 +956,9 @@ class GameController(
             json.put("gameMode", gameMode.name)
             json.put("aiColor", aiColor.name)
             json.put("difficulty", difficulty.name)
+            // Kept with the game, so a change of the setting afterwards does not make a practice
+            // game (hints, take-backs) count, or a challenge game stop counting.
+            json.put(KEY_CHALLENGE, challenge)
             clock.writeTo(json)
             // The one total that saves before 2.4.8 kept, for an older version reading this one.
             json.put("elapsedMs", clock.total())
@@ -880,8 +991,10 @@ class GameController(
     fun loadGame(context: Context): Boolean {
         gameGeneration++
         interruptBackground()
+        stopForegroundSearch()
         notes.clear()
         gameOver = false
+        lastResult = null
         try {
             val prefs = context.getSharedPreferences("chess_save", Context.MODE_PRIVATE)
             val jsonStr = prefs.getString("saved_game", null) ?: return false
@@ -890,6 +1003,8 @@ class GameController(
             // Restore game mode
             gameMode = GameMode.valueOf(json.getString("gameMode"))
             aiColor = PieceColor.valueOf(json.getString("aiColor"))
+            // Absent from a save before 2.6.1: the setting decides, as it did then.
+            savedChallenge = if (json.has(KEY_CHALLENGE)) json.optBoolean(KEY_CHALLENGE) else null
 
             // Replay all moves from where the game started
             board = json.optString("initialFen").takeIf { it.isNotEmpty() }?.let { Fen.parse(it) }
@@ -930,6 +1045,11 @@ class GameController(
                 positionHashes.add(board.getPositionHash())
             }
 
+            // A game that was already over when saved (older versions kept those) comes back over,
+            // quietly: its result was announced, and counted, the first time.
+            lastResult = resultOf(board, positionHashes, initialBoard, moveHistory)
+            gameOver = lastResult != null || (endgame != null && endgameMovesLeft() <= 0)
+
             // Each clock resumes where it stopped (from zero for a save that has no clocks).
             val (redMs, blackMs) = GameClock.savedTimes(json)
             clock.reset(redMs, blackMs)
@@ -962,6 +1082,12 @@ class GameController(
 
         /** Search depth for the defending side of an endgame study. */
         private const val ENDGAME_DEFENCE_DEPTH = 12
+
+        /** Engine processes that may go away before the built-in search takes over for good. */
+        private const val MAX_ENGINE_LOSSES = 2
+
+        /** Whether a saved game is a challenge game (see [savedChallenge]). */
+        private const val KEY_CHALLENGE = "challenge"
 
         /**
          * How the game stands on [board], reached from [start] by [moves] through the positions
@@ -1045,7 +1171,8 @@ class GameController(
                     val engine = ensurePikafish() ?: return@withLock null
                     backgroundSearching = true
                     try {
-                        engine.analyse(position, depth = REVIEW_BEST_DEPTH)
+                        // Kept only from an engine that lived through the search.
+                        engine.analyse(position, depth = REVIEW_BEST_DEPTH).takeIf { engine.isAlive }
                     } finally {
                         backgroundSearching = false
                     }
@@ -1102,7 +1229,7 @@ class GameController(
         if (position.getAllLegalMoves().isEmpty()) return PikafishEngine.Score(cp = null, mate = 0) to null
         return engineMutex.withLock {
             val engine = ensurePikafish() ?: return@withLock null
-            engine.analyse(position, depth, moveTimeMs)
+            engine.analyse(position, depth, moveTimeMs).takeIf { engine.isAlive }
         }
     }
 
@@ -1216,40 +1343,53 @@ class GameController(
         }
     }
 
+    /**
+     * The engine's move for the position on the board, through [callback]; null if there is
+     * none. Not called at all if the position changed while the hint was worked out (the player
+     * moved, or a new game began): the move would be for a board no longer there.
+     */
     fun getHint(callback: (Move?) -> Unit) {
-        if (board.isCheckmate() || board.isStalemate()) {
+        if (replayMode || gameOver || board.isCheckmate() || board.isStalemate()) {
             callback(null)
             return
         }
 
-        onAIThinking?.invoke(true)
+        val position = board.copy()
+        val history = moveHistory.toList()
+        val sideToMove = position.currentPlayer
+        val index = moveHistory.size
+        val generation = gameGeneration
+        fun stillCurrent() = generation == gameGeneration && index == moveHistory.size
+
+        thinking(true)
         interruptBackground()
         coroutineScope.launch {
             try {
-                val sideToMove = board.currentPlayer
-                val index = moveHistory.size
-                val generation = gameGeneration
                 val fromEngine = engineMutex.withLock {
+                    if (!stillCurrent()) return@withLock null
                     val engine = ensurePikafish() ?: return@withLock null
-                    val move = engine.findBestMove(board, moveTimeMs = 2000)
+                    val move = foregroundSearch { engine.findBestMove(position, moveTimeMs = 2000) }
                     if (move != null) move to engine.lastScore else null
                 }
+                if (!stillCurrent()) return@launch
                 if (fromEngine != null) {
                     // A hint is as deep a look as the review takes; keep it for the review.
-                    if (generation == gameGeneration && index == moveHistory.size) notes[index] = fromEngine.second to fromEngine.first
+                    notes[index] = fromEngine.second to fromEngine.first
                     onEvaluationUpdated?.invoke(toRedPerspective(fromEngine.second, sideToMove))
                     callback(fromEngine.first)
                 } else {
-                    callback(fallbackAI.findBestMove(board, moveHistory))
+                    val move = fallbackAI.findBestMove(position, history)
+                    if (stillCurrent()) callback(move)
                 }
             } finally {
-                onAIThinking?.invoke(false)
+                thinking(false)
                 scheduleBackgroundAnalysis()
             }
         }
     }
 
     fun destroy() {
+        destroyed = true
         coroutineScope.cancel()
         pikafishEngine?.close()
         pikafishEngine = null

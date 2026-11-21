@@ -107,4 +107,21 @@ class RulesAndDataTest {
         assertTrue("already lost $alreadyLost", alreadyLost < 0.02)
         assertTrue(spoiled > alreadyLost)
     }
+
+    @Test
+    fun theNetworkIsUnpackedWhenMissingOrNotTheAppsAndOtherwiseLeftAlone() {
+        val shipped = listOf(File("src/main/assets/pikafish.nnue"), File("app/src/main/assets/pikafish.nnue"))
+            .first { it.exists() }.length()
+        // First use.
+        assertTrue(PikafishEngine.needsUnpacking(onDiskLength = null, appLength = shipped))
+        // A complete copy from any earlier launch stays: no unpacking again on every start.
+        assertFalse(PikafishEngine.needsUnpacking(onDiskLength = shipped, appLength = shipped))
+        // An unpacking cut short (the storage full, the app ended), or a release with another network.
+        assertTrue(PikafishEngine.needsUnpacking(onDiskLength = shipped / 2, appLength = shipped))
+        assertTrue(PikafishEngine.needsUnpacking(onDiskLength = 0, appLength = shipped))
+        assertTrue(PikafishEngine.needsUnpacking(onDiskLength = shipped + 1024, appLength = shipped))
+        // When the app's size cannot be told, a copy that is there is used, as before.
+        assertFalse(PikafishEngine.needsUnpacking(onDiskLength = shipped, appLength = -1))
+        assertTrue(PikafishEngine.needsUnpacking(onDiskLength = null, appLength = -1))
+    }
 }

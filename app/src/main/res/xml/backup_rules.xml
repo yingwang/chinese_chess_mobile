@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Backup up to Android 11. The engine's network (about 50 MB) is unpacked from the app on first
+    use and would put the backup over its 25 MB limit, and then nothing at all is backed up: not
+    the rating, the studies solved or the settings. It is left out; everything else goes in.
+-->
+<full-backup-content>
+    <exclude domain="file" path="pikafish.nnue" />
+    <exclude domain="file" path="pikafish.nnue.part" />
+</full-backup-content>

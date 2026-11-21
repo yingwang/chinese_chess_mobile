@@ -162,6 +162,12 @@ object OnlineProtocol {
             result.copy(winner = moverOf(moveCount).opposite())
         } else result
 
+    /**
+     * Whether two results end the game the same way: the same type and winner, whatever the time
+     * on them (a resignation read back from the room carries the server's, the one sent does not).
+     */
+    fun sameOutcome(a: WireResult, b: WireResult): Boolean = a.type == b.type && a.winner == b.winner
+
     /** What to do with the database's list of moves, held against the moves on the board. */
     sealed class SyncAction {
         /** The same moves on both: nothing to do. */
